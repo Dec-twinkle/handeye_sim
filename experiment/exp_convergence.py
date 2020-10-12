@@ -29,8 +29,6 @@ import transforms3d
 import numpy as np
 import time
 if __name__ == '__main__':
-
-
         board = apriltagboard.AprilTagBoard("../config/apriltag.yml", "../config/tagId.csv")
         cliend = vrep_connect.getVrep_connect()
         camera = Kinect.Camera(cliend)
@@ -58,12 +56,12 @@ if __name__ == '__main__':
             timestamp = time.time()
             timestruct = time.localtime(timestamp)
             time_str = time.strftime('%m_%d_%H_%M', timestruct)
-            Hcamera2end, Hobj2base, max_rme = auto_calibration.auto_calibration(robot, camera, board, pose, imgsize, intrinsic,
-                                                                                dist, max_step=30,savepath="../result/noLocal_std_{0}.yml".format(time_str))
-            # Hcamera2end, Hobj2base, max_rme = auto_calibration.auto_calibration_random(robot, camera, board, pose, imgsize,
-            #                                                                     intrinsic,
-            #                                                                     dist, max_step=30,
-            #                                                                     savepath="../result/random_{0}.yml".format(time_str))
+            # Hcamera2end, Hobj2base, max_rme = auto_calibration.auto_calibration(robot, camera, board, pose, imgsize, intrinsic,
+            #                                                                     dist, max_step=30,savepath="../result/noLocal_std_{0}.yml".format(time_str))
+            Hcamera2end, Hobj2base, max_rme = auto_calibration.auto_calibration_random(robot, camera, board, pose, imgsize,
+                                                                                intrinsic,
+                                                                                dist, max_step=30,
+                                                                                savepath="../result/random_{0}.yml".format(time_str))
             robot.go_home()
 
 
