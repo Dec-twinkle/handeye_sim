@@ -58,6 +58,7 @@ def auto_calibration(robot,camera,board,initpose,imgsize, intrinsic,dist, max_er
         sco_list = []
         for i in range(len(random_select_pose)):
             sco, random_robot_pose = score.score_expect_robot_pose(pose_list, cam_pose_list, random_select_pose[i], Hcamera2end)
+
             if not robot.moveable(random_robot_pose):
                 continue
             sco_list.append([i, sco, random_robot_pose, random_select_pose[i]])

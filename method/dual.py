@@ -8,7 +8,7 @@ def calibration(motionAs, motionBs):
     使用对偶四元数进行标定
     :param motionAs: AX=XB,来自handineye.motion_axxb或者handtoeye.motion_axxb
     :param motionBs:  AX=XB,来自handineye.motion_axxb或者handtoeye.motion_axxb
-    :return: 若使用handineye，为机器臂末端到相机的变换，使用handtoeye是机器臂基底到相机的变换
+    :return: 若使用handineye，为机器臂末端到相机的变换，使用handtoeye是相机到基底的变换
     '''
     size = len(motionAs)
     T = []

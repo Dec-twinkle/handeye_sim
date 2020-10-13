@@ -47,8 +47,10 @@ def score_expect_robot_pose(know_robot_pose, know_cam_Extrinsic, expect_cam_pose
 
     expect_robot_pose = np.append(transforms3d.quaternions.quat2mat(mean_q), np.transpose([mean_t]), 1)
     expect_robot_pose = np.append(expect_robot_pose, np.array([[0, 0, 0, 1]]), 0)
-    score = np.mean(std_q) + np.mean(1 * std_t) +no_local_term(know_robot_pose,expect_robot_pose)
-
+    no_local_score = no_local_term(know_robot_pose,expect_robot_pose)
+    std_score = np.mean(std_q) + np.mean(1 * std_t)
+    score = std_score +no_local_score
+    print("std_score:{0}, no_local_score{1}".format(std_score,no_local_score))
     return score, expect_robot_pose
 
 
@@ -79,16 +81,4 @@ def score_reprojection(know_robot_pose, know_cam_Extrinsic, expect_cam_pose, Tha
     proj = np.dot(trans, grid)
     error = proj - grid
 
-    # fig = plt.figure()
-    # ax = fig.gca(projection='3d')
-    # ax.plot(point[0,:],point[1,:],point[2,:],c='r')
-    # ax.plot(pointbase[0,:],pointbase[1,:],pointbase[2,:],c='b')
-    # ax.plot(pointCam[0,:],pointCam[1,:],pointCam[2,:],c='y')
-    # ax.plot(pointEnd[0,:],pointEnd[1,:],pointEnd[2,:],c='g')
-    # ax.set_zlim3d(-1,1)
-    # plt.xlim(-1,1)
-    # plt.ylim(-1,1)
-    #
-    #
-    # plt.show()
     return np.mean(np.abs(error)), Tbase2end

@@ -8,12 +8,18 @@ import time
 import numpy as np
 import cv2
 class Camera():
-    def __init__(self,clientId):
+    def __init__(self,clientId,config):
         self.clientID = clientId
         errorCode, self.KinectRgbHandle = vrep.simxGetObjectHandle(self.clientID, 'kinect_rgb',
                                                                      vrep.simx_opmode_blocking)
         errorCode, self.KinectDepthHandle = vrep.simxGetObjectHandle(self.clientID, 'kinect_depth',
                                                                      vrep.simx_opmode_oneshot_wait)
+        self.imgsize = (640,480)
+        fs2 = cv2.FileStorage(config, cv2.FileStorage_READ)
+        self.intrinsic = fs2.getNode("intrinsic").mat()
+        self.dist = fs2.getNode("dist").mat()
+        fs2.release()
+
     def get_rgb_image(self):
         # Get color image from simulation
 

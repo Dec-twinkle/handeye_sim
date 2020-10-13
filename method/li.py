@@ -9,7 +9,7 @@ def calibration(motionAs, motionBs):
     :param motionAs: list<array<4*4>> A 来自handineye.motion_axyb或者是handtoeye.motion_axyb
     :param motionBs: list<array<4*4>> B 来自handineye.motion_axyb或者是handtoeye.motion_axyb
     :return: X:handineye中为机器基底到标定板的变换 handtoeye:机器臂基底到相机的变换
-            Y:handineye中为机器臂末端到相机的变换 handtoeye:机器臂末端到标定板的变换
+            Y:handineye中为相机到机器臂末端的变换 handtoeye:标定板到机械臂末端的变化
     '''
     T = np.zeros([9, 9])
     n= len(motionAs)
