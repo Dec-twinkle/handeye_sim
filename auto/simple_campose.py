@@ -17,7 +17,6 @@ def generate_simple_pose(config,board,initial_rotation,verbose=0):
     inter_z = fs.getNode("inter_z").real()
     inter_xy = fs.getNode("inter_xy").real()
     optic_angle = fs.getNode("optic_angle").real()
-    angle_inter = fs.getNode("angle_inter").real()
     fs.release()
     z_cout = int((maxZ-minZ)/inter_z)
     board_max_x = board.marker_X*(board.markerSeparation+board.tag_size)
