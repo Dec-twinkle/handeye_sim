@@ -21,7 +21,7 @@ import random
 import threading
 
 class auto_handeye_calibration(object):
-    def __init__(self,board,robot,camera,config):
+    def __init__(self,board,robot,camera,config,move_lock):
         '''
         初始化，需要指定标定板，机器臂，相机，以及初始化文件
         :param board: 标定板
@@ -63,15 +63,17 @@ class auto_handeye_calibration(object):
         fs.release()
 
         self.next_step_method = 0
+        self.move_lock = move_lock
 
     def init_handeye(self):
         '''
         通过旋转机械臂来初始化手眼标定
         :return:
         '''
-        flag = self.robot.move(self.init_robot_pose)
-        assert flag, "cannot reach init pose"
-        rgb_image = self.camera.get_rgb_image()
+        flag,rgb_image = self.move_lock.move_and_getimage(self.init_robot_pose)
+        # flag = self.robot.move(self.init_robot_pose)
+        # assert flag, "cannot reach init pose"
+        # rgb_image = self.camera.get_rgb_image()
         flag, objpoint, imgpoint = self.board.getObjImgPointList(rgb_image, verbose=0)
         assert flag, "robot init pose cannot see board"
         self.objpoint_list = []
@@ -99,10 +101,12 @@ class auto_handeye_calibration(object):
                     pose_r = transforms3d.euler.euler2mat(euler_temp[0], euler_temp[1], euler_temp[2], 'sxyz')
                     robot_pose = self.init_robot_pose.copy()
                     robot_pose[:3, :3] = pose_r[:, :]
-                    flag1 = self.robot.move(robot_pose)
-                    rgb_image = self.camera.get_rgb_image()
+                    flag, rgb_image = self.move_lock.move_and_getimage(robot_pose)
+                    # flag = self.robot.move(self.init_robot_pose)
+                    # assert flag, "cannot reach init pose"
+                    # rgb_image = self.camera.get_rgb_image()
                     flag, objpoint, imgpoint = self.board.getObjImgPointList(rgb_image)
-                    if flag and flag1:
+                    if flag:
                         objpoint_temp = objpoint.copy()
                         imgpoint_temp = imgpoint.copy()
                         robot_pose_temp = robot_pose.copy()
@@ -301,7 +305,7 @@ class auto_handeye_calibration(object):
 
         expect_robot_pose = np.append(transforms3d.quaternions.quat2mat(mean_q), np.transpose([mean_t]), 1)
         expect_robot_pose = np.append(expect_robot_pose, np.array([[0, 0, 0, 1]]), 0)
-        score = std_q + std_t
+        score = np.sum(std_q) + np.sum(std_t)
         return score,expect_robot_pose
     def get_Expect_robot_pose(self,expect_campose):
         expect_cam_pose_mat = expect_campose
@@ -411,10 +415,7 @@ class auto_handeye_calibration(object):
                 robot_pose = self.get_Expect_robot_pose(pose)
                 if not self.robot.moveable(robot_pose):
                     continue
-                flag = self.robot.move(robot_pose)
-                if not flag:
-                    continue
-                rgb_image = self.camera.get_rgb_image()
+                flag,rgb_image = self.move_lock.move_and_getimage(robot_pose)
                 flag, objpoint, imgpoint = self.board.getObjImgPointList(rgb_image)
                 if not flag:
                     continue

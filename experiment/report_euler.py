@@ -118,8 +118,8 @@ mpl.rcParams['axes.unicode_minus'] = False # 解决保存图像是负号'-'显�
 
 x_range = np.arange(5,30,1)
 plt.rcParams['figure.figsize'] = (6.0, 4.0)
-# plt.rcParams['image.interpolation'] = 'nearest' # 设置 interpolation style
-# plt.rcParams['image.cmap'] = 'gray' # 设置 颜色 style
+plt.rcParams['image.interpolation'] = 'nearest' # 设置 interpolation style
+#plt.rcParams['image.cmap'] = 'gray' # 设置 颜色 style
 plt.rcParams['savefig.dpi'] = 2080#图片像素
 plt.rcParams['figure.dpi'] = 300 #分辨率
 plt.title("camera2end error")

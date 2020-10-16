@@ -24,9 +24,9 @@ def dict_tranform_to_save_term(data):
         result_dict['type'] = 'int'
         result_dict['data'] = data
         return result_dict
-    elif type(data) is float:
+    elif type(data).__name__ == 'float' or type(data).__name__ == 'float32' or type(data).__name__ == 'float64':
         result_dict['type'] = 'float'
-        result_dict['data'] = data
+        result_dict['data'] = data.astype(float)
         return result_dict
     elif type(data).__name__=='dict':
         result_dict['type'] = 'dict'
@@ -78,7 +78,10 @@ def json_save(data,file):
     with open(file, 'w') as f_obj:
         json.dump(dict_tranform_to_save_term(data), f_obj)
 
-# def json_load(file):
+def json_load(file):
+    with open(file,'r') as f:
+        data = json.load(f)
+    return dict_tranform_to_norm_term(data)
 
 
 

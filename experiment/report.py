@@ -199,7 +199,7 @@ plt.plot([], [], label = 'random')
 lns = ins0+ins1
 labs = [l.get_label() for l in lns]
 ax[1,3].legend(lns, labs, loc="upper right")
-ax[1,3].legend(loc = 'lower right')
+
 plt.savefig("q_error_10_10.png")
 plt.show()
 print(0)

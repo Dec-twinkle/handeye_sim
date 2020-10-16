@@ -31,8 +31,8 @@ import time
 if __name__ == '__main__':
         board = apriltagboard.AprilTagBoard("../config/apriltag.yml", "../config/tagId.csv")
         cliend = vrep_connect.getVrep_connect()
-        camera = Kinect.Camera(cliend)
-        camera2 = Kinect_test.Camera(cliend)
+        camera = Kinect.Camera(cliend,"../config/intrinsic_gt.yml")
+        camera2 = Kinect_test.Camera(cliend,"../config/intrinsic_gt.yml")
         robot = LBR4p.Robot(cliend)
 
         fs = cv2.FileStorage("../config/init_sample.yml",cv2.FileStorage_READ)

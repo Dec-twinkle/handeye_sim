@@ -9,12 +9,17 @@ import numpy as np
 import cv2
 import transforms3d
 class Camera():
-    def __init__(self,clientId):
+    def __init__(self,clientId,config):
         self.clientID = clientId
-        errorCode, self.KinectRgbHandle = vrep.simxGetObjectHandle(self.clientID, 'kinect_rgb#0',
+        errorCode, self.KinectRgbHandle = vrep.simxGetObjectHandle(self.clientID, 'kinect_rgb',
                                                                      vrep.simx_opmode_blocking)
-        errorCode, self.KinectDepthHandle = vrep.simxGetObjectHandle(self.clientID, 'kinect_depth#0',
+        errorCode, self.KinectDepthHandle = vrep.simxGetObjectHandle(self.clientID, 'kinect_depth',
                                                                vrep.simx_opmode_oneshot_wait)
+        self.imgsize = (640, 480)
+        fs2 = cv2.FileStorage(config, cv2.FileStorage_READ)
+        self.intrinsic = fs2.getNode("intrinsic").mat()
+        self.dist = fs2.getNode("dist").mat()
+        fs2.release()
 
     def move(self,pose):
         euler = transforms3d.euler.mat2euler(pose[:3, :3], 'rxyz')
