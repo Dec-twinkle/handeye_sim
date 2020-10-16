@@ -301,7 +301,7 @@ class auto_handeye_calibration(object):
 
         expect_robot_pose = np.append(transforms3d.quaternions.quat2mat(mean_q), np.transpose([mean_t]), 1)
         expect_robot_pose = np.append(expect_robot_pose, np.array([[0, 0, 0, 1]]), 0)
-        score = std_q + std_t
+        score = np.mean(std_q) + np.mean(std_t)
         return score,expect_robot_pose
     def get_Expect_robot_pose(self,expect_campose):
         expect_cam_pose_mat = expect_campose
