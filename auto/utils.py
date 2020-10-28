@@ -24,7 +24,11 @@ def dict_tranform_to_save_term(data):
         result_dict['type'] = 'int'
         result_dict['data'] = data
         return result_dict
-    elif type(data).__name__ == 'float' or type(data).__name__ == 'float32' or type(data).__name__ == 'float64':
+    elif type(data).__name__ == 'float' :
+        result_dict['type'] = 'float'
+        result_dict['data'] = data
+        return result_dict
+    elif type(data).__name__ == 'float32' or type(data).__name__ == 'float64':
         result_dict['type'] = 'float'
         result_dict['data'] = data.astype(float)
         return result_dict

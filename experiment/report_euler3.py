@@ -6,7 +6,9 @@ import os
 import cv2
 import transforms3d
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 from auto import utils
 from pylab import mpl
 colorMap ={
@@ -95,11 +97,17 @@ def draw_error(ax_list,euler_error,t_error,label,x_range):
     tz_error = t_error[:, 2]
 
     ax_list[0].plot(x_range, rx_error,color=colorMap[label], label=label)
+    ax_list[0].set_title("rx")
     ax_list[1].plot(x_range, ry_error,color=colorMap[label],  label=label)
+    ax_list[1].set_title("ry")
     ax_list[2].plot(x_range, rz_error,color=colorMap[label], label=label)
+    ax_list[2].set_title("rz")
     ax_list[3].plot(x_range, tx_error,color=colorMap[label], label=label)
+    ax_list[3].set_title("tx")
     ax_list[4].plot(x_range, ty_error,color=colorMap[label], label=label)
+    ax_list[4].set_title("ty")
     ax_list[5].plot(x_range, tz_error,color=colorMap[label], label=label)
+    ax_list[5].set_title("tz")
 
 
 
@@ -110,7 +118,7 @@ if __name__ == '__main__':
     method_file_list = []
     for i in range(len(method_list)):
         method_file_list.append([])
-    root_dir = "../result/10_24"
+    root_dir = "../result/10_29"
     files = os.listdir(root_dir)
     for file in files:
         for i in range(len(method_list)):
@@ -137,29 +145,39 @@ if __name__ == '__main__':
     # plt.rcParams['image.cmap'] = 'gray' # 设置 颜色 style
     plt.rcParams['savefig.dpi'] =1024  # 图片像素
     plt.rcParams['figure.dpi'] = 300  # 分辨率
-    plt.title("camera2end error")
+    # plt.title("camera2end error")
     x_range = np.arange(5, 31, 1)
 
+    fig1, f1_axes = plt.subplots(ncols=4, nrows=2,constrained_layout=True,sharex='col',sharey='row')
+    # spec2 = gridspec.GridSpec(ncols=4, nrows=2, figure=fig1)
+    ax_list = []
+
+    ax_list.append(f1_axes[0,0])
+    ax_list.append(f1_axes[0,1])
+    ax_list.append(f1_axes[0,2])
+    ax_list.append(f1_axes[1,0])
+    ax_list.append(f1_axes[1,1])
+    ax_list.append(f1_axes[1,2])
+
+    label_ax = fig1.add_subplot(f1_axes[0,3])
+    plain_ax = fig1.add_subplot(f1_axes[1,3])
+    plain_ax.get_xaxis().set_visible(False)
+    plain_ax.get_yaxis().set_visible(False)
+    plain_ax.set_frame_on(False)
 
     #设置label
-    ax = plt.subplot(144)
-    ax.set_frame_on(False)
-    ax.get_xaxis().set_visible(False)
-    ax.get_yaxis().set_visible(False)
+
+    label_ax.set_frame_on(False)
+    label_ax.get_xaxis().set_visible(False)
+    label_ax.get_yaxis().set_visible(False)
     lns = []
     for label in method_list:
         lns = lns+ plt.plot([], [], color=colorMap[label],label=label)
     labs = [l.get_label() for l in lns]
-    ax.legend(lns, labs, loc="upper right")
+    label_ax.legend(lns, labs, loc="upper right")
 
     #划分子图
-    ax_list = []
-    ax_list.append(plt.subplot(241))
-    ax_list.append(plt.subplot(242))
-    ax_list.append(plt.subplot(243))
-    ax_list.append(plt.subplot(245))
-    ax_list.append(plt.subplot(246))
-    ax_list.append(plt.subplot(247))
+
     for i in range(len(method_list)):
         draw_error(ax_list,method_error[i][0],method_error[i][1],method_list[i],x_range)
     plt.savefig(os.path.join(root_dir,"Ecamera2end.png"))
@@ -170,28 +188,40 @@ if __name__ == '__main__':
     # plt.rcParams['image.cmap'] = 'gray' # 设置 颜色 style
     plt.rcParams['savefig.dpi'] = 1024  # 图片像素
     plt.rcParams['figure.dpi'] = 300  # 分辨率
-    plt.title("obj2base error")
+    #plt.title("obj2base error")
     x_range = np.arange(5, 31, 1)
 
     # 设置label
-    ax = plt.subplot(144)
-    ax.set_frame_on(False)
-    ax.get_xaxis().set_visible(False)
-    ax.get_yaxis().set_visible(False)
+
+
+    # 划分子图
+    fig1, f1_axes = plt.subplots(ncols=4, nrows=2, constrained_layout=True, sharex='col', sharey='row')
+    # spec2 = gridspec.GridSpec(ncols=4, nrows=2, figure=fig1)
+    ax_list = []
+
+    ax_list.append(f1_axes[0, 0])
+    ax_list.append(f1_axes[0, 1])
+    ax_list.append(f1_axes[0, 2])
+    ax_list.append(f1_axes[1, 0])
+    ax_list.append(f1_axes[1, 1])
+    ax_list.append(f1_axes[1, 2])
+
+    label_ax = fig1.add_subplot(f1_axes[0, 3])
+    plain_ax = fig1.add_subplot(f1_axes[1, 3])
+    plain_ax.get_xaxis().set_visible(False)
+    plain_ax.get_yaxis().set_visible(False)
+    plain_ax.set_frame_on(False)
+    # 设置label
+
+    label_ax.set_frame_on(False)
+    label_ax.get_xaxis().set_visible(False)
+    label_ax.get_yaxis().set_visible(False)
     lns = []
     for label in method_list:
         lns = lns + plt.plot([], [], color=colorMap[label], label=label)
     labs = [l.get_label() for l in lns]
-    ax.legend(lns, labs, loc="upper right")
+    label_ax.legend(lns, labs, loc="upper right")
 
-    # 划分子图
-    ax_list = []
-    ax_list.append(plt.subplot(241))
-    ax_list.append(plt.subplot(242))
-    ax_list.append(plt.subplot(243))
-    ax_list.append(plt.subplot(245))
-    ax_list.append(plt.subplot(246))
-    ax_list.append(plt.subplot(247))
     for i in range(len(method_list)):
         draw_error(ax_list, method_error[i][2], method_error[i][3], method_list[i], x_range)
 

@@ -29,6 +29,7 @@ class auto_handeye_calibration(object):
         :param camera: 相机
         :param config: 配置文件
         '''
+        self.config = config
         self.board = board
         self.robot = robot
         self.camera = camera
@@ -64,6 +65,8 @@ class auto_handeye_calibration(object):
 
         self.next_step_method = 0
         self.move_lock = move_lock
+    def set_init_robot_pose(self,pose):
+        self.init_robot_pose = pose.copy()
 
     def init_handeye(self):
         '''
@@ -84,6 +87,7 @@ class auto_handeye_calibration(object):
         self.result = []
         self.objpoint_list.append(objpoint)
         self.imgpoint_list.append(imgpoint)
+        self.image.append(rgb_image)
         self.Hend2base.append(self.init_robot_pose)
         camerapose = self.board.extrinsic(imgpoint, objpoint, self.camera.intrinsic, self.camera.dist)
         self.Hobj2camera.append(camerapose)
@@ -102,9 +106,6 @@ class auto_handeye_calibration(object):
                     robot_pose = self.init_robot_pose.copy()
                     robot_pose[:3, :3] = pose_r[:, :]
                     flag, rgb_image = self.move_lock.move_and_getimage(robot_pose)
-                    # flag = self.robot.move(self.init_robot_pose)
-                    # assert flag, "cannot reach init pose"
-                    # rgb_image = self.camera.get_rgb_image()
                     flag, objpoint, imgpoint = self.board.getObjImgPointList(rgb_image)
                     if flag:
                         objpoint_temp = objpoint.copy()
@@ -155,10 +156,10 @@ class auto_handeye_calibration(object):
         rme = rz.proj_error(Hx,Hy,self.Hend2base,self.Hobj2camera,self.board.GetBoardAllPoints())
         if self.cali_type==0:
             self.result.append({"image_number": len(self.image), "Hcamera2end":Hx,"Hobj2base":Hy,
-                                 "mean_rme":np.mean(np.abs(rme)),"max_rme":np.max(np.abs(rme))})
+                                 "mean_rme":np.mean(np.abs(rme)),"max_rme":np.max(np.abs(rme)),"simu":self.robot.get_simu()})
         else:
             self.result.append({"image_number": len(self.image), "Hcamera2base": Hx, "Hobj2end": Hy,
-                                "mean_rme": np.mean(np.abs(rme)), "max_rme": np.max(np.abs(rme))})
+                                "mean_rme": np.mean(np.abs(rme)), "max_rme": np.max(np.abs(rme),),"simu":self.robot.get_simu()})
         self.Hx = Hx
         self.Hy = Hy
 
@@ -226,10 +227,14 @@ class auto_handeye_calibration(object):
                           [math.pi / 3, 0, 0],
                           [0, math.pi / 6, 0],
                           [0, math.pi / 3, 0],
+                          [0, 0, math.pi / 6],
+                          [0, 0, math.pi / 3],
                           [-math.pi / 6, 0, 0],
                           [-math.pi / 3, 0, 0],
                           [0, -math.pi / 6, 0],
                           [0, -math.pi / 3, 0],
+                          [0, 0, -math.pi / 6],
+                          [0, 0, -math.pi / 3],
                           ])
         Rlist = []
         for i in range(angle.shape[0]):
@@ -361,7 +366,7 @@ class auto_handeye_calibration(object):
                     continue
                 if self.next_step_method==3:
                     no_local_score = self.score_no_local(robot_pose)
-                    score+=no_local_score
+                    score= score*10+no_local_score
                 sco_list.append([i, score, expect_camera_list[i]])
             sco_list.sort(key=lambda x: x[1])
             campose_order_list = []
@@ -377,7 +382,7 @@ class auto_handeye_calibration(object):
                     continue
                 if self.next_step_method == 4:
                     no_local_score = self.score_no_local(robot_pose)
-                    score += no_local_score
+                    score = score*(10**5)+no_local_score
                 sco_list.append([i, score, expect_camera_list[i]])
             sco_list.sort(key=lambda x: x[1])
             campose_order_list = []
@@ -400,17 +405,80 @@ class auto_handeye_calibration(object):
         else:
             random.shuffle(expect_camera_list)
             return expect_camera_list
+    def copy(self):
+        auto = auto_handeye_calibration(self.board,self.robot,self.camera,self.config,self.move_lock)
+        auto.Hx = self.Hx.copy()
+        auto.Hy = self.Hy.copy()
+        auto.imgpoint_list=self.imgpoint_list.copy()
+        auto.objpoint_list = self.objpoint_list.copy()
+        auto.Hend2base = self.Hend2base.copy()
+        auto.Hobj2camera = self.Hobj2camera.copy()
+        auto.image = self.image.copy()
+        auto.result = self.result.copy()
+        return auto
+    def ias_run(self):
+        num_p = 3
+        x_angle = [0, 15, 0]
+        y_angle = [0, 0, 15]
+        z_angle = [0, 0, 0]
+        d_min = -0.4
+        for plane in range(num_p):
+            for angle in range(len(x_angle)):
+                Hcamera2obj = np.linalg.inv(self.Hobj2camera[0])
+                r_x_temp, r_y_temp, r_z_temp = transforms3d.euler.mat2euler(Hcamera2obj[:3, :3])
+                r_x_temp = r_x_temp + x_angle[angle] * math.pi / 180
+                r_y_temp = r_y_temp + y_angle[angle] * math.pi / 180
+                r_z_temp = r_z_temp + z_angle[angle] * math.pi / 180
+                for y in range(4):
+                    tx_temp, ty_temp, tz_temp = Hcamera2obj[:3, 3]
+                    while (True):
+                        if y == 0:
+                            tx_temp = tx_temp + 0.05
+                        elif y == 1:
+                            tx_temp = tx_temp - 0.05
+                        elif y == 2:
+                            ty_temp = ty_temp + 0.05
+                        elif y == 3:
+                            ty_temp = ty_temp - 0.05
+                        expect_camera2obj_r = transforms3d.euler.euler2mat(r_x_temp, r_y_temp, r_z_temp)
+                        expect_camera2obj = np.identity(4)
+                        expect_camera2obj[:3, :3] = expect_camera2obj_r
+                        expect_camera2obj[0, 3] = tx_temp
+                        expect_camera2obj[1, 3] = ty_temp
+                        expect_camera2obj[2, 3] = d_min
+                        expect_robot_pose = self.get_Expect_robot_pose(np.linalg.inv(expect_camera2obj))
+                        flag = self.robot.moveable(expect_robot_pose)
+                        if not flag:
+                            break
+                        flag,rgb_image = self.move_lock.move_and_getimage(expect_robot_pose)
+                        if not flag:
+                            break
+                        flag, objpoint, imgpoint = self.board.getObjImgPointList(rgb_image)
+                        if not flag:
+                            break
+                        camerapose = self.board.extrinsic(imgpoint, objpoint, self.camera.intrinsic, self.camera.dist)
+                        self.objpoint_list.append(objpoint)
+                        self.imgpoint_list.append(imgpoint)
+                        self.Hend2base.append(expect_robot_pose)
+                        self.Hobj2camera.append(camerapose)
+                        self.image.append(rgb_image)
+                        self.handeye_cali()
+                        if len(self.image)>30:
+                            return
+            d_min -= 0.05
 
 
     def run(self):
-        self.init_handeye()
-        self.handeye_cali()
+        #self.init_handeye()
+        #self.handeye_cali()
         simple_campose = self.camera_pose_simple()
 
         simple_campose = self.select_pose_by_view(simple_campose)
 
         while(len(self.image)<self.picture_number):
-            cam_list = self.score_main(simple_campose)
+            random_simple_pose = random.sample(simple_campose,2000)
+
+            cam_list = self.score_main(random_simple_pose)
             for pose in cam_list:
                 robot_pose = self.get_Expect_robot_pose(pose)
                 if not self.robot.moveable(robot_pose):

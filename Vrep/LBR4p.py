@@ -26,29 +26,6 @@ class Robot():
         errorcode,self.home_position = vrep.simxGetObjectPosition(self.clientID, self.dummyTipHandle, -1,
                                                      vrep.simx_opmode_oneshot_wait)
 
-    def go_home(self):
-        vrep.simxSetObjectOrientation(self.clientID, self.dummyTargetHandle, -1,self.home_euler,vrep.simx_opmode_oneshot_wait)
-        time.sleep(0.5)
-        vrep.simxSetObjectPosition(self.clientID, self.dummyTargetHandle, -1, self.home_position,
-                                   vrep.simx_opmode_oneshot_wait)
-        time.sleep(0.5)
-        return
-
-    def go_guodudian(self):
-        return
-        # guodudian_position = np.array([-0.1, -0.1, 0.9])
-        # vrep.simxSetObjectPosition(self.clientID, self.dummyTargetHandle, -1, guodudian_position,
-        #                            vrep.simx_opmode_oneshot_wait)
-        # time.sleep(2)
-        # guodudian_euler = np.array([0, -math.pi / 2, math.pi / 2])
-        # vrep.simxSetObjectOrientation(self.clientID, self.dummyTargetHandle, -1, guodudian_euler,
-        #                               vrep.simx_opmode_oneshot_wait)
-        # time.sleep(2)
-        #
-        # guodudian_position = np.array([0.2, 0.0, 0.5])
-        # vrep.simxSetObjectPosition(self.clientID, self.dummyTargetHandle, -1, guodudian_position,
-        #                            vrep.simx_opmode_oneshot_wait)
-        # time.sleep(2)
     def getPoseMatrix(self):
         errorcode,euler = vrep.simxGetObjectOrientation(self.clientID,self.dummyTipHandle,-1,vrep.simx_opmode_oneshot_wait)
         errorcode,position = vrep.simxGetObjectPosition(self.clientID,self.dummyTipHandle,-1,vrep.simx_opmode_oneshot_wait)
@@ -131,6 +108,11 @@ class Robot():
         if x**2+y**2+(z-0.36)**2<0.42**2:
             return False
         return True
+    def set_simu(self,simu):
+        self.simu_q = simu
+        self.simu_t = simu
+    def get_simu(self):
+        return self.simu_q
 
 
 if __name__ == '__main__':

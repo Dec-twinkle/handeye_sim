@@ -49,9 +49,9 @@ def calibration(motionAs, motionBs):
     q_ = lambda1 * v1 + lambda2 * v2
 
     H = np.append(utils.dualquat2r_t(q, q_),np.array([[0,0,0,1]]),0)
-    error = np.array([])
-    for i in range(len(motionAs)):
-        error = np.append(error, np.sum(np.dot(motionAs[i], H) - np.dot(H, motionBs[i])))
-    print(error)
+    # error = np.array([])
+    # for i in range(len(motionAs)):
+    #     error = np.append(error, np.sum(np.dot(motionAs[i], H) - np.dot(H, motionBs[i])))
+    # print(error)
 
     return H

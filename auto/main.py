@@ -59,6 +59,7 @@ if __name__ == '__main__':
     intrinsic = fs2.getNode("intrinsic").mat()
     dist = fs2.getNode("dist").mat()
 
+    auto_calibration.set
     Hcamera2end,Hobj2base = auto_calibration.auto_calibration(robot,camera,board,pose,imgsize,intrinsic,dist,max_step=20)
 
 
