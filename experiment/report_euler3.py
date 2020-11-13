@@ -9,6 +9,8 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+import pandas as pd
+import seaborn as sns
 from auto import utils
 from pylab import mpl
 colorMap ={
@@ -109,7 +111,21 @@ def draw_error(ax_list,euler_error,t_error,label,x_range):
     ax_list[5].plot(x_range, tz_error,color=colorMap[label], label=label)
     ax_list[5].set_title("tz")
 
+def draw_error_seaborn_ax(ax,error_dic,x_range):
+    df = pd.DataFrame(error_dic, index=x_range)
+    sns.lineplot(data=df, ax=ax)
 
+def draw_error_seaborn(ax_list,error_dic,x_range):
+    error_dic_x = {}
+    error_dic_y = {}
+    error_dic_z = {}
+    for method in error_dic:
+        error_dic_x[method]= error_dic[method][:,0]
+        error_dic_y[method]= error_dic[method][:,1]
+        error_dic_z[method]= error_dic[method][:,2]
+    draw_error_seaborn_ax(ax_list[0],error_dic_x,x_range)
+    draw_error_seaborn_ax(ax_list[1],error_dic_y,x_range)
+    draw_error_seaborn_ax(ax_list[2],error_dic_z,x_range)
 
 
 if __name__ == '__main__':
@@ -118,13 +134,13 @@ if __name__ == '__main__':
     method_file_list = []
     for i in range(len(method_list)):
         method_file_list.append([])
-    root_dir = "../result/10_29"
+    root_dir = "..\\result\\10_28"
     files = os.listdir(root_dir)
     for file in files:
         for i in range(len(method_list)):
             if file.startswith(method_list[i]):
                 method_file_list[i].append(os.path.join(root_dir,file))
-    fs = cv2.FileStorage("../config/handineye_gt.yml", cv2.FileStorage_READ)
+    fs = cv2.FileStorage("..\\config\\handineye_gt.yml", cv2.FileStorage_READ)
     Hcamera2end_gt = fs.getNode("Hcamera2end").mat()
     Hobj2base_gt = fs.getNode("Hobj2base").mat()
     fs.release()
@@ -134,99 +150,111 @@ if __name__ == '__main__':
     t_obj2base_gt = Hobj2base_gt[:3, 3]
     #error 统计
     method_error = []
+    euler_error_camera2end_dict = {}
+    t_error_camera2end_dict = {}
+    euler_error_obj2base_dict = {}
+    t_error_obj2base_dict = {}
     for i in range(len(method_list)):
         euler_camera2end_error, t_camera2end_error, euler_obj2base_error, t_obj2base_error = \
             getErrorList(method_file_list[i],euler_camera2end_gt,t_camera2end_gt,euler_obj2base_gt,t_obj2base_gt)
-        method_error.append([euler_camera2end_error, t_camera2end_error, euler_obj2base_error, t_obj2base_error])
+        # method_error.append([euler_camera2end_error, t_camera2end_error, euler_obj2base_error, t_obj2base_error])
+        euler_error_camera2end_dict[method_list[i]] = euler_camera2end_error
+        t_error_camera2end_dict[method_list[i]] = t_camera2end_error
+        euler_error_obj2base_dict[method_list[i]] = euler_obj2base_error
+        t_error_obj2base_dict[method_list[i]] = euler_camera2end_error
 
     # 设置plt
-    plt.rcParams['figure.figsize'] = (6.0, 4.0)
-    plt.rcParams['image.interpolation'] = 'nearest'  # 设置 interpolation style
-    # plt.rcParams['image.cmap'] = 'gray' # 设置 颜色 style
-    plt.rcParams['savefig.dpi'] =1024  # 图片像素
-    plt.rcParams['figure.dpi'] = 300  # 分辨率
-    # plt.title("camera2end error")
+    # plt.rcParams['figure.figsize'] = (6.0, 4.0)
+    # plt.rcParams['image.interpolation'] = 'nearest'  # 设置 interpolation style
+    # # plt.rcParams['image.cmap'] = 'gray' # 设置 颜色 style
+    # plt.rcParams['savefig.dpi'] =1024  # 图片像素
+    # plt.rcParams['figure.dpi'] = 300  # 分辨率
+    # # plt.title("camera2end error")
     x_range = np.arange(5, 31, 1)
-
-    fig1, f1_axes = plt.subplots(ncols=4, nrows=2,constrained_layout=True,sharex='col',sharey='row')
+    fig1, f1_axes = plt.subplots(ncols=3, nrows=2,constrained_layout=True,sharex='col',sharey='row')
     # spec2 = gridspec.GridSpec(ncols=4, nrows=2, figure=fig1)
-    ax_list = []
+    ax_euler_list = []
+    ax_t_list = []
 
-    ax_list.append(f1_axes[0,0])
-    ax_list.append(f1_axes[0,1])
-    ax_list.append(f1_axes[0,2])
-    ax_list.append(f1_axes[1,0])
-    ax_list.append(f1_axes[1,1])
-    ax_list.append(f1_axes[1,2])
+    ax_euler_list.append(f1_axes[0,0])
+    ax_euler_list.append(f1_axes[0,1])
+    ax_euler_list.append(f1_axes[0,2])
+    ax_t_list.append(f1_axes[1,0])
+    ax_t_list.append(f1_axes[1,1])
+    ax_t_list.append(f1_axes[1,2])
 
-    label_ax = fig1.add_subplot(f1_axes[0,3])
-    plain_ax = fig1.add_subplot(f1_axes[1,3])
-    plain_ax.get_xaxis().set_visible(False)
-    plain_ax.get_yaxis().set_visible(False)
-    plain_ax.set_frame_on(False)
-
-    #设置label
-
-    label_ax.set_frame_on(False)
-    label_ax.get_xaxis().set_visible(False)
-    label_ax.get_yaxis().set_visible(False)
-    lns = []
-    for label in method_list:
-        lns = lns+ plt.plot([], [], color=colorMap[label],label=label)
-    labs = [l.get_label() for l in lns]
-    label_ax.legend(lns, labs, loc="upper right")
-
-    #划分子图
-
-    for i in range(len(method_list)):
-        draw_error(ax_list,method_error[i][0],method_error[i][1],method_list[i],x_range)
-    plt.savefig(os.path.join(root_dir,"Ecamera2end.png"))
+    draw_error_seaborn(ax_euler_list,euler_error_camera2end_dict,x_range)
+    draw_error_seaborn(ax_t_list,t_error_camera2end_dict,x_range)
     plt.show()
 
-    plt.rcParams['figure.figsize'] = (6.0, 4.0)
-    plt.rcParams['image.interpolation'] = 'nearest'  # 设置 interpolation style
-    # plt.rcParams['image.cmap'] = 'gray' # 设置 颜色 style
-    plt.rcParams['savefig.dpi'] = 1024  # 图片像素
-    plt.rcParams['figure.dpi'] = 300  # 分辨率
-    #plt.title("obj2base error")
-    x_range = np.arange(5, 31, 1)
-
-    # 设置label
-
-
-    # 划分子图
-    fig1, f1_axes = plt.subplots(ncols=4, nrows=2, constrained_layout=True, sharex='col', sharey='row')
-    # spec2 = gridspec.GridSpec(ncols=4, nrows=2, figure=fig1)
-    ax_list = []
-
-    ax_list.append(f1_axes[0, 0])
-    ax_list.append(f1_axes[0, 1])
-    ax_list.append(f1_axes[0, 2])
-    ax_list.append(f1_axes[1, 0])
-    ax_list.append(f1_axes[1, 1])
-    ax_list.append(f1_axes[1, 2])
-
-    label_ax = fig1.add_subplot(f1_axes[0, 3])
-    plain_ax = fig1.add_subplot(f1_axes[1, 3])
-    plain_ax.get_xaxis().set_visible(False)
-    plain_ax.get_yaxis().set_visible(False)
-    plain_ax.set_frame_on(False)
-    # 设置label
-
-    label_ax.set_frame_on(False)
-    label_ax.get_xaxis().set_visible(False)
-    label_ax.get_yaxis().set_visible(False)
-    lns = []
-    for label in method_list:
-        lns = lns + plt.plot([], [], color=colorMap[label], label=label)
-    labs = [l.get_label() for l in lns]
-    label_ax.legend(lns, labs, loc="upper right")
-
-    for i in range(len(method_list)):
-        draw_error(ax_list, method_error[i][2], method_error[i][3], method_list[i], x_range)
-
-    plt.savefig(os.path.join(root_dir, "Eobj2base.png"))
-    plt.show()
+    # label_ax = fig1.add_subplot(f1_axes[0,3])
+    # plain_ax = fig1.add_subplot(f1_axes[1,3])
+    # plain_ax.get_xaxis().set_visible(False)
+    # plain_ax.get_yaxis().set_visible(False)
+    # plain_ax.set_frame_on(False)
+    #
+    # #设置label
+    #
+    # label_ax.set_frame_on(False)
+    # label_ax.get_xaxis().set_visible(False)
+    # label_ax.get_yaxis().set_visible(False)
+    # lns = []
+    # for label in method_list:
+    #     lns = lns+ plt.plot([], [], color=colorMap[label],label=label)
+    # labs = [l.get_label() for l in lns]
+    # label_ax.legend(lns, labs, loc="upper right")
+    #
+    # #划分子图
+    #
+    # for i in range(len(method_list)):
+    #     draw_error(ax_list,method_error[i][0],method_error[i][1],method_list[i],x_range)
+    # plt.savefig(os.path.join(root_dir,"Ecamera2end.png"))
+    # plt.show()
+    #
+    # plt.rcParams['figure.figsize'] = (6.0, 4.0)
+    # plt.rcParams['image.interpolation'] = 'nearest'  # 设置 interpolation style
+    # # plt.rcParams['image.cmap'] = 'gray' # 设置 颜色 style
+    # plt.rcParams['savefig.dpi'] = 1024  # 图片像素
+    # plt.rcParams['figure.dpi'] = 300  # 分辨率
+    # #plt.title("obj2base error")
+    # x_range = np.arange(5, 31, 1)
+    #
+    # # 设置label
+    #
+    #
+    # # 划分子图
+    # fig1, f1_axes = plt.subplots(ncols=4, nrows=2, constrained_layout=True, sharex='col', sharey='row')
+    # # spec2 = gridspec.GridSpec(ncols=4, nrows=2, figure=fig1)
+    # ax_list = []
+    #
+    # ax_list.append(f1_axes[0, 0])
+    # ax_list.append(f1_axes[0, 1])
+    # ax_list.append(f1_axes[0, 2])
+    # ax_list.append(f1_axes[1, 0])
+    # ax_list.append(f1_axes[1, 1])
+    # ax_list.append(f1_axes[1, 2])
+    #
+    # label_ax = fig1.add_subplot(f1_axes[0, 3])
+    # plain_ax = fig1.add_subplot(f1_axes[1, 3])
+    # plain_ax.get_xaxis().set_visible(False)
+    # plain_ax.get_yaxis().set_visible(False)
+    # plain_ax.set_frame_on(False)
+    # # 设置label
+    #
+    # label_ax.set_frame_on(False)
+    # label_ax.get_xaxis().set_visible(False)
+    # label_ax.get_yaxis().set_visible(False)
+    # lns = []
+    # for label in method_list:
+    #     lns = lns + plt.plot([], [], color=colorMap[label], label=label)
+    # labs = [l.get_label() for l in lns]
+    # label_ax.legend(lns, labs, loc="upper right")
+    #
+    # for i in range(len(method_list)):
+    #     draw_error(ax_list, method_error[i][2], method_error[i][3], method_list[i], x_range)
+    #
+    # plt.savefig(os.path.join(root_dir, "Eobj2base.png"))
+    # plt.show()
 
 
 
