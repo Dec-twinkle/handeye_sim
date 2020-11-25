@@ -180,8 +180,10 @@ if __name__ == '__main__':
     filePath = []
 
     hx_df_euler, hy_df_euler, hx_df_t, hy_df_t = getErrorList(root_dir,files,euler_hx_gt,t_hx_gt,euler_hy_gt,t_hy_gt,method_list,name_list)
+
     ax_list = init_set()
-    print(hx_df_euler)
+    #print(hx_df_euler)
+    print(hx_df_euler[(hx_df_euler["image number"]==5) & (hx_df_euler["method"]=="no_local_std")])
     sns.lineplot(x="image number", y="euler_error", hue="method", data=hx_df_euler,ax=ax_list[0])
     sns.lineplot(x="image number", y="t_error", hue="method", data=hx_df_t,ax=ax_list[1])
     # draw_error_seaborn_ax(ax_list[0], hx_df_euler, x_range,os.path.join(root_dir, "{0}_mean_r.csv".format(Hx)))
