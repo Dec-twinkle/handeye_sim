@@ -30,6 +30,8 @@ def RMSE(Hx,Hy,poseList, extrinsicList, real_coor):
         proj[:, :] = proj[:, :] / proj[3, :]
         error = np.append(error,proj[0:3,:]-real_coor[0:3,:])
     return error
+def proj_error(Hx,Hy,poseList, extrinsicList, objpoints):
+    return RMSE(Hx,Hy,poseList, extrinsicList, objpoints)
 
 def RMSE2(Hx,Hy,poseList, extrinsicList, real_coor):
     n = len(poseList)

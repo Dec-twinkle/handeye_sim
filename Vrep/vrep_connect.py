@@ -4,11 +4,11 @@
 # @email: 1262981714@qq.com
 from Vrep import vrep
 import time
-def getVrep_connect():
+def getVrep_connect(port):
     vrep.simxFinish(-1)
     print("attempt to connect vrep")
     while True:
-        clientID = vrep.simxStart('127.0.0.1', 19999, True, True, 5000, 5)
+        clientID = vrep.simxStart('127.0.0.1', port, True, True, 5000, 5)
         if clientID > -1:
             break
         else:

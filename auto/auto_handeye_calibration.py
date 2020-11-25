@@ -124,8 +124,8 @@ class auto_handeye_calibration(object):
 
     def handeye_cali(self):
         A, B = motion.motion_axxb(self.Hend2base, self.Hobj2camera)
-        #Hx = tsai.calibration(A, B)
-        Hx = dual.calibration(A, B)
+        Hx = tsai.calibration(A, B)
+        #Hx = dual.calibration(A, B)
         A, B = motion.motion_axyb(self.Hend2base, self.Hobj2camera)
         # Hx2,Hy2 = li.calibration(A,B)
         Hx = rx.refine(Hx, self.Hend2base, self.Hobj2camera,
@@ -344,7 +344,7 @@ class auto_handeye_calibration(object):
             t = self.Hend2base[j][:3, 3]
             q_dis = np.linalg.norm(q - q0)
             t_dis = np.linalg.norm(t - t0)
-            score = -(math.pow(math.e, -25*abs(q_dis)) + 1 * math.pow(math.e, -25*abs(t_dis)))
+            score = -(math.pow(math.e, -abs(q_dis)) + 1 * math.pow(math.e, -abs(t_dis)))
             if score < min_score:
                 min_score = score
         return min_score

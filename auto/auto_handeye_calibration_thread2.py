@@ -10,16 +10,191 @@ import time
 import math
 from method import tsai
 from method import dual
+import psutil
+import os
 #import handtoeye
 from scipy import optimize as opt
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import multiprocessing
+
 from multiprocessing import Pool
 import random
 import threading
-from progressbar import *
+from numba import jit
 
+
+def multi_score(cali_type,Hend2base,Hobj2camera,method,Hx,expect_camera_list):
+    @jit
+    def score_std(expect_camera):
+        expect_cam_pose_mat = expect_camera
+        q = np.array([])
+        t = np.array([])
+        for j in range(len(Hend2base)):
+            if cali_type == 0:
+                temp_robot_pose = np.dot(Hend2base[j], np.dot(Hx, np.dot(Hobj2camera[j], np.dot(
+                    np.linalg.inv(expect_cam_pose_mat), np.linalg.inv(Hx)))))
+            else:
+                temp_robot_pose = np.dot(Hx, np.dot(np.dot(np.linalg.inv(Hobj2camera[j]),
+                                                       np.dot(np.linalg.inv(Hx), Hend2base[j]))))
+            q = np.append(q, transforms3d.quaternions.mat2quat(temp_robot_pose[:3, :3]))
+            t = np.append(t, temp_robot_pose[:3, 3])
+        q = q.reshape([-1, 4])
+        t = t.reshape([-1, 3])
+        for i in range(1, q.shape[0]):
+            if abs(np.linalg.norm(q[0, :] - q[i, :])) > abs(np.linalg.norm(q[0, :] + q[i, :])):
+                q[i, :] = -q[i, :]
+        mean_q = np.mean(q, 0)
+        mean_t = np.mean(t, 0)
+        std_q = np.std(q, axis=0)
+        std_t = np.std(t, axis=0)
+
+        expect_robot_pose = np.append(transforms3d.quaternions.quat2mat(mean_q), np.transpose([mean_t]), 1)
+        expect_robot_pose = np.append(expect_robot_pose, np.array([[0, 0, 0, 1]]), 0)
+        score = np.sum(std_q) + np.sum(std_t)
+        return score,expect_robot_pose
+    @jit
+    def score_no_local(expect_robot_pose):
+        q0 = transforms3d.quaternions.mat2quat(expect_robot_pose[:3, :3])
+        t0 = expect_robot_pose[:3, 3]
+        min_score = 0
+        for j in range(len(Hend2base)):
+            q = transforms3d.quaternions.mat2quat(Hend2base[j][:3, :3])
+            if np.linalg.norm(q - q0) > np.linalg.norm(q + q0):
+                q = -q
+            t = Hend2base[j][:3, 3]
+            q_dis = np.linalg.norm(q - q0)
+            t_dis = np.linalg.norm(t - t0)
+            score = -(math.pow(math.e, -0.5*abs(q_dis)) + 1 * math.pow(math.e, -0.5*abs(t_dis)))
+            if score < min_score:
+                min_score = score
+        return min_score
+    def get_Expect_robot_pose(expect_campose):
+        expect_cam_pose_mat = expect_campose
+        q = np.array([])
+        t = np.array([])
+        for j in range(len(Hend2base)):
+            if cali_type == 0:
+                temp_robot_pose = np.dot(Hend2base[j], np.dot(Hx, np.dot(Hobj2camera[j], np.dot(
+                    np.linalg.inv(expect_cam_pose_mat), np.linalg.inv(Hx)))))
+            else:
+                temp_robot_pose = np.linalg.multi_dot([Hx, expect_cam_pose_mat, np.linalg.inv(Hobj2camera[j]),
+                                                       np.linalg.inv(Hx), Hend2base[j]])
+            q = np.append(q, transforms3d.quaternions.mat2quat(temp_robot_pose[:3, :3]))
+            t = np.append(t, temp_robot_pose[:3, 3])
+        q = q.reshape([-1, 4])
+        t = t.reshape([-1, 3])
+        for i in range(1, q.shape[0]):
+            if abs(np.linalg.norm(q[0, :] - q[i, :])) > abs(np.linalg.norm(q[0, :] + q[i, :])):
+                q[i, :] = -q[i, :]
+        mean_q = np.mean(q, 0)
+        mean_t = np.mean(t, 0)
+        expect_robot_pose = np.append(transforms3d.quaternions.quat2mat(mean_q), np.transpose([mean_t]), 1)
+        expect_robot_pose = np.append(expect_robot_pose, np.array([[0, 0, 0, 1]]), 0)
+        return expect_robot_pose
+    sco_list = []
+
+    # pid = os.getpid()
+    # print("pid",pid)
+    # # p = psutil.Process(pid)
+    # # with p.oneshot():
+    # #     cpu_percent = p.cpu_percent()
+    # time1= time.time()
+    if method == 1 or method== 3:
+        for i in range(len(expect_camera_list)):
+            score, robot_pose = score_std(expect_camera_list[i])
+            if method == 3:
+                no_local_score = score_no_local(robot_pose)
+                score = score * 10 + no_local_score
+            sco_list.append([i, score, expect_camera_list[i]])
+    elif sco_list == 0:
+        sco_list = []
+        for i in range(len(expect_camera_list)):
+            robot_pose = get_Expect_robot_pose(expect_camera_list[i])
+            no_local_score = score_no_local(robot_pose)
+            sco_list.append([i, no_local_score, expect_camera_list[i]])
+    # time2 = time.time()
+    # p = psutil.Process(pid)
+    # with p.oneshot():
+    #     cpu_percent = p.cpu_percent()
+    # print("multi score time:",time2-time1,"len(expect_campose)=",len(expect_camera_list),"pid",pid,"cpu:",cpu_percent)
+
+    return sco_list
+def multi_score_main(auto_handeye_calibration,expect_camera_list):
+    num_pthread = 2
+    p = Pool(num_pthread)
+    n = len(expect_camera_list)
+    result = []
+    sco_list = []
+    cont = int(n / num_pthread) if n % num_pthread == 0 else int(n / num_pthread) + 1
+    for i in range(num_pthread):
+        end = (i + 1) * cont if (i + 1) * cont < n else n
+        res = p.apply_async(multi_score, args=(auto_handeye_calibration.cali_type,auto_handeye_calibration.Hend2base.copy(),
+                                              auto_handeye_calibration.Hobj2camera.copy(),auto_handeye_calibration.next_step_method,
+                                               auto_handeye_calibration.Hx.copy(), expect_camera_list[i * cont:end]))
+        result.append(res)
+    for res in result:
+        time1 = time.time()
+        sco_list_slice = res.get()
+        sco_list.extend(sco_list_slice)
+        time2 = time.time()
+        print(time2-time1)
+    return sco_list
+
+
+
+
+
+
+def multi_tase(auto_handeye_calibration,expect_camera_list):
+    sco_list = []
+    if auto_handeye_calibration.next_step_method == 1 or auto_handeye_calibration.next_step_method == 3:
+        for i in range(len(expect_camera_list)):
+            score, robot_pose = auto_handeye_calibration.score_std(expect_camera_list[i])
+            if not auto_handeye_calibration.robot.moveable(robot_pose):
+                continue
+            if auto_handeye_calibration.next_step_method == 3:
+                no_local_score = auto_handeye_calibration.score_no_local(robot_pose)
+                score = score * 10 + no_local_score
+            sco_list.append([i, score, expect_camera_list[i]])
+        return sco_list
+    elif auto_handeye_calibration.next_step_method == 0:
+        sco_list = []
+        for i in range(len(expect_camera_list)):
+            robot_pose = auto_handeye_calibration.get_Expect_robot_pose(expect_camera_list[i])
+            no_local_score = auto_handeye_calibration.score_no_local(robot_pose)
+            sco_list.append([i, no_local_score, expect_camera_list[i]])
+        return sco_list
+def score_main(auto_handeye_calibration,expect_camera_list):
+    num_pthread = 10
+    sco_list_sum = []
+    threads = []
+    p = Pool(5)
+    result = []
+    n = len(expect_camera_list)
+    cont = int(n / num_pthread) if n % num_pthread == 0 else int(n / num_pthread) + 1
+    for i in range(num_pthread):
+        end = (i + 1) * cont if (i + 1) * cont < n else n
+        res = p.apply_async(multi_tase, args=(auto_handeye_calibration.copy(), expect_camera_list[i * cont:end]))
+        result.append(res)
+    for res in result:
+        sco_list_slice = res.get()
+        print(sco_list_slice)
+
+class TestThread(threading.Thread):
+    def __init__(self, func, args=()):
+        super(TestThread, self).__init__()
+        self.func = func
+        self.args = args
+
+    def run(self):
+        self.result = self.func(*self.args)
+
+    def get_result(self):
+        try:
+            return self.result  # 如果子线程不使用join方法，此处可能会报没有self.result的错误
+        except Exception:
+            return None
 
 class auto_handeye_calibration(object):
     def __init__(self,board,robot,camera,config,move_lock):
@@ -152,7 +327,7 @@ class auto_handeye_calibration(object):
             from handtoeye import rx
             from handtoeye import rz
         A, B = motion.motion_axxb(self.Hend2base, self.Hobj2camera)
-        Hx = dual.calibration(A, B)
+        Hx = tsai.calibration(A, B)
         Hx = rx.refine(Hx, self.Hend2base, self.Hobj2camera,
                                            self.board.GetBoardAllPoints())
         q = np.array([])
@@ -411,28 +586,39 @@ class auto_handeye_calibration(object):
             sco_list = []
             for i in range(len(expect_camera_list)):
                 score, robot_pose = self.score_std(expect_camera_list[i])
-                # if not self.robot.moveable(robot_pose):
-                #     continue
+                if not self.robot.moveable(robot_pose):
+                    continue
                 if self.next_step_method == 3:
                     no_local_score = self.score_no_local(robot_pose)
                     score = score * 10 + no_local_score
                 sco_list.append([i, score, expect_camera_list[i]])
             time2 = time.time()
-            #print("score time:",time2-time1)
+            print("score time:", time2 - time1, "len(expect_camera_list)=", len(expect_camera_list))
+            sco_list = []
+            for i in range(int(len(expect_camera_list)/2)):
+                score, robot_pose = self.score_std(expect_camera_list[i])
+                if not self.robot.moveable(robot_pose):
+                    continue
+                if self.next_step_method == 3:
+                    no_local_score = self.score_no_local(robot_pose)
+                    score = score * 10 + no_local_score
+                sco_list.append([i, score, expect_camera_list[i]])
+            time3 = time.time()
+            print("single half score time:",time3-time2,"len(expect_camera_list)=",len(expect_camera_list))
             sco_list.sort(key=lambda x: x[1])
             campose_order_list = []
             for t in sco_list:
                 campose_order_list.append(t[2])
             campose_order_list.reverse()
             time3 = time.time()
-            #print("sort time:",time3-time2)
+            print("sort time:",time3-time2)
             return campose_order_list
         elif self.next_step_method == 2 or self.next_step_method == 4:
             sco_list = []
             for i in range(len(expect_camera_list)):
                 score, robot_pose = self.score_expect_rme(expect_camera_list[i])
-                # if not self.robot.moveable(robot_pose):
-                #     continue
+                if not self.robot.moveable(robot_pose):
+                    continue
                 if self.next_step_method == 4:
                     no_local_score = self.score_no_local(robot_pose)
                     score = score * (10 ** 5) + no_local_score
@@ -459,10 +645,24 @@ class auto_handeye_calibration(object):
             random.shuffle(expect_camera_list)
             return expect_camera_list
 
+    def score_main_multi(self,expect_camera_list):
+        if self.next_step_method==5:
+            random.shuffle(expect_camera_list)
+            return expect_camera_list
+        else:
+            sco_list = multi_score_main(self.copy(),expect_camera_list)
+            sco_list.sort(key=lambda x: x[1])
+            campose_order_list = []
+            for t in sco_list:
+                campose_order_list.append(t[2])
+            campose_order_list.reverse()
+            return campose_order_list
+
 
     def copy(self):
         auto = auto_handeye_calibration(self.board,self.robot,self.camera,self.config,self.move_lock)
         auto.cali_type=self.cali_type
+        auto.next_step_method=self.next_step_method
         auto.Hx = self.Hx.copy()
         auto.Hy = self.Hy.copy()
         auto.imgpoint_list=self.imgpoint_list.copy()
@@ -478,9 +678,6 @@ class auto_handeye_calibration(object):
         y_angle = [0, 0, 15]
         z_angle = [0, 0, 0]
         d_min = -0.4
-        widgets = ['ias: ', Percentage(), ' ', Bar('#'), ' ', Timer(),
-                   ' ', ETA(),]
-        pbar = ProgressBar(widgets=widgets,maxval=30).start()
         for plane in range(num_p):
             for angle in range(len(x_angle)):
                 Hcamera2obj = np.linalg.inv(self.Hobj2camera[0])
@@ -522,11 +719,8 @@ class auto_handeye_calibration(object):
                         self.Hobj2camera.append(camerapose)
                         self.image.append(rgb_image)
                         self.handeye_cali()
-                        pbar.update(len(self.image))
-                        if len(self.image)>=30:
-                            pbar.finish()
+                        if len(self.image)>30:
                             return
-
             d_min -= 0.05
 
 
@@ -535,14 +729,16 @@ class auto_handeye_calibration(object):
 
         simple_campose = self.select_pose_by_view(simple_campose)
 
-
-        method_list = {0:"no_Local", 1:"std", 3:'no_local_std', 5:"random"}
-        widgets = [method_list[self.next_step_method], Percentage(), ' ', Bar('#'), ' ', Timer(),' ', ETA()]
-        progress = ProgressBar(widgets = widgets)
-        for i in progress(range(self.picture_number-len(self.image))):
-        # while(len(self.image)<self.picture_number):
+        while(len(self.image)<self.picture_number):
             random_simple_pose = simple_campose
+            time1 = time.time()
+            cam_list1 = self.score_main_multi(random_simple_pose)
+            time2 = time.time()
+            print("multi time:", time2 - time1)
             cam_list = self.score_main(random_simple_pose)
+            time3 = time.time()
+            print("single time:",time3-time2)
+
             for pose in cam_list:
                 robot_pose = self.get_Expect_robot_pose(pose)
                 if not self.robot.moveable(robot_pose):

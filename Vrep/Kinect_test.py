@@ -8,6 +8,7 @@ import time
 import numpy as np
 import cv2
 import transforms3d
+import random
 class Camera():
     def __init__(self,clientId,config):
         self.clientID = clientId
@@ -17,6 +18,7 @@ class Camera():
                                                                vrep.simx_opmode_oneshot_wait)
         self.imgsize = (640, 480)
         fs2 = cv2.FileStorage(config, cv2.FileStorage_READ)
+        self.intrinsic_gt = fs2.getNode("intrinsic").mat()
         self.intrinsic = fs2.getNode("intrinsic").mat()
         self.dist = fs2.getNode("dist").mat()
         fs2.release()
@@ -35,6 +37,13 @@ class Camera():
         # time.sleep(1)
 
         time.sleep(0.5)
+    def add_noise(self):
+        f_random = (random.random()-0.5)*20
+        self.intrinsic[0, 0] = self.intrinsic_gt[0,0]+f_random
+        self.intrinsic[1, 1] = self.intrinsic_gt[1,1]+f_random
+        self.intrinsic[0, 2] = self.intrinsic_gt[0,2]+(random.random()-0.5)*2
+        self.intrinsic[1, 2] = self.intrinsic_gt[1,2]+(random.random()-0.5)*2
+
     def get_rgb_image(self):
         # Get color image from simulation
 

@@ -1,37 +1,27 @@
 # _*_ coding:utf-8 _*_
-# @time: 2020/10/15 上午9:13
+# @time: 2020/11/2 下午3:53
 # @author: 张新新
 # @email: 1262981714@qq.com
-import transforms3d
+
 from auto import auto_handeye_calibration_thread
+
 from auto import utils
-from auto import init_handeye
-from auto import score
-from auto import simple_campose
-from auto import select_simple_pose
-from auto import auto_calibration
 
 from Vrep import vrep_connect
 from Vrep import LBR4p
-from Vrep import Kinect
+
 from Vrep import Kinect_test
 
 from board import apriltagboard
 import os
-from handineye import motion
-from handineye import rx
-from handineye import rz
 
-from method import dual
-from method import li
-from method import tsai
-
+import random
 import cv2
 import transforms3d
 import numpy as np
+
 import time
 import threading
-import random
 
 class lock(object):
     lock = 0
@@ -61,7 +51,7 @@ method={
         "random":5
     }
 def task(board,robot,camera,move_lock,methodstr,auto_handeye):
-    save_dir = "../result/10_31"
+    save_dir = "../result/10_30"
     #print("method {} start {} iters".format(methodstr, i))
     # auto_handeye = auto_handeye_calibration_thread.auto_handeye_calibration(board, robot, camera,
     #                                                                         "../config/auto_set.yml", move_lock)
@@ -79,9 +69,9 @@ def task(board,robot,camera,move_lock,methodstr,auto_handeye):
 
 if __name__ == '__main__':
     method={
-        "no_Lock":0,
+        "no_Local":0,
         "std":1,
-        "no_lock_std":3,
+        "no_local_std":3,
         #"rme":2,
         #"no_lock_rme":4,
         "random":5,
@@ -93,27 +83,37 @@ if __name__ == '__main__':
     robot = LBR4p.Robot(cliend)
     move_lock = lock(robot,camera)
     threads = []
-    init_robot_pose_list = utils.json_load("../config/init_robot_pose.json")
-    for j in range(6):
-        for i in range(30):
-            simu = j*0.002
-            robot.set_simu(simu)
-            print("start to cal {} iters data".format(i))
-            start = time.time()
-            # 中间写上代码块
+    fs = cv2.FileStorage("../config/init_handtoeye_robot_pose.yml", cv2.FileStorage_READ)
+    init_pose = fs.getNode("initpose").mat()
 
-            auto_handeye = auto_handeye_calibration_thread.auto_handeye_calibration(board, robot, camera,
-                                                                                    "../config/auto_set.yml", move_lock)
-            auto_handeye.set_init_robot_pose(random.choice(init_robot_pose_list))
-            auto_handeye.init_handeye()
-            auto_handeye.handeye_cali()
-            Hx = auto_handeye.Hx
-            Hy = auto_handeye.Hy
-            for key in method:
-                threadA = threading.Thread(target=task,args=(board,robot,camera,move_lock,key,auto_handeye.copy()))
-                threadA.start()
-                threads.append(threadA)
-            for thread in threads:
-                thread.join()
-            end = time.time()
-            print('Running time: %s Seconds' % (end - start))
+    q = init_pose[:4].flatten()
+    pose_r = transforms3d.quaternions.quat2mat(q)
+    move_lock = lock(robot, camera)
+    pose = np.identity(4)
+
+    pose[:3, :3] = pose_r[:, :]
+    pose[0, 3] = init_pose[4]
+    pose[1, 3] = init_pose[5]
+    pose[2, 3] = init_pose[6]
+    for i in range(100):
+        print("start to cal {} iters data".format(i))
+        start = time.time()
+        # 中间写上代码块
+
+        auto_handeye = auto_handeye_calibration_thread.auto_handeye_calibration(board, robot, camera,
+                                                                                "../config/auto_set.yml", move_lock)
+        auto_handeye.cali_type=1
+        auto_handeye.set_init_robot_pose(pose)
+        auto_handeye.init_handeye()
+        auto_handeye.handeye_cali()
+        Hx = auto_handeye.Hx
+        Hy = auto_handeye.Hy
+        for key in method:
+            threadA = threading.Thread(target=task,args=(board,robot,camera,move_lock,key,auto_handeye.copy()))
+            threadA.start()
+            threads.append(threadA)
+        for thread in threads:
+            thread.join()
+        end = time.time()
+        print('Running time: %s Seconds' % (end - start))
+

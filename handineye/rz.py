@@ -11,8 +11,6 @@ def proj_error(Hx,Hy,poseList, extrinsicList, objpoints):
     real_coor = np.append(real_coor, np.ones([1, a]), 0)
     for i in range(n):
         Wordpoints = real_coor
-        # Wordpoints = np.append(Wordpoints, np.ones([1, Wordpoints.shape[1]]), 0)
-
         Hbh = np.array(poseList[i])
         proj = np.dot(np.linalg.inv(extrinsicList[i]), np.dot(np.linalg.inv(Hx), np.dot(np.dot(np.linalg.inv(Hbh), Hy), Wordpoints)))
         proj[:, :] = proj[:, :] / proj[3, :]
