@@ -22,7 +22,7 @@ colorMap ={
         "random":"yellow",
         'ias':"pink"
     }
-cali_type = 1
+cali_type = 0
 if cali_type==0:
     Hx = "Hcamera2end"
     Hy = "Hobj2base"
@@ -117,19 +117,14 @@ def draw_error(ax_list,euler_error,t_error,label,x_range):
 
 def init_set():
     plt.rcParams['figure.figsize'] = (8.0, 4.0)
-    # plt.rcParams['image.interpolation'] = 'nearest'  # 设置 interpolation style
-    # plt.rcParams['savefig.dpi'] = 1024  # 图片像素
-    # plt.rcParams['figure.dpi'] = 300  # 分辨率
-    #x_range = np.arange(5, 31, 1)
-
     fig1, f1_axes = plt.subplots(ncols=2, nrows=1, constrained_layout=True)
     # spec2 = gridspec.GridSpec(ncols=4, nrows=2, figure=fig1)
     ax_list = []
 
     ax_list.append(f1_axes[0])
     ax_list.append(f1_axes[1])
-    ax_list[0].set_ylabel("Absulute Rotation error(rad)")
-    ax_list[1].set_ylabel("Absulute Position error(m)")
+    # ax_list[0].set_ylabel("Absulute Rotation error(rad)")
+    # ax_list[1].set_ylabel("Absulute Position error(m)")
     # label_ax = fig1.add_subplot(f1_axes[0, 3])
     # plain_ax = fig1.add_subplot(f1_axes[1, 3])
     # plain_ax.get_xaxis().set_visible(False)
@@ -177,7 +172,7 @@ if __name__ == '__main__':
     sns.set_style("whitegrid")
     for i in range(len(method_list)):
         method_file_list.append([])
-    root_dir = "../result/11_34"
+    root_dir = "../result/11_33"
     files = os.listdir(root_dir)
     for file in files:
         for i in range(len(method_list)):
@@ -205,6 +200,17 @@ if __name__ == '__main__':
     # method_file_list = ["../result/11_8/random_11_12_20_16.json"]
     # euler_hx_error, t_hx_error, euler_hy_error, t_hy_error = \
     #     getErrorList(method_file_list, euler_hx_gt, t_hx_gt, euler_hy_gt, t_hy_gt)
+    hx_euler_mean = []
+    hx_euler_std= []
+    hx_t_mean = []
+    hx_t_std = []
+    hy_euler_mean = []
+    hy_euler_std = []
+    hy_t_mean = []
+    hy_t_std = []
+    number = []
+    methods = []
+
     euler_error_camera2end_mean_dict = {}
     t_error_camera2end_mean_dict = {}
     euler_error_obj2base_mean_dict = {}
@@ -217,17 +223,40 @@ if __name__ == '__main__':
         euler_hx_error, t_hx_error, euler_hy_error, t_hy_error = \
             getErrorList(method_file_list[i],euler_hx_gt,t_hx_gt,euler_hy_gt,t_hy_gt)
 
-        euler_error_camera2end_mean_dict[name_list[i]]=np.mean(euler_hx_error,axis=0)
-        t_error_camera2end_mean_dict[name_list[i]]=np.mean(t_hx_error,axis=0)
-        euler_error_obj2base_mean_dict[name_list[i]]=np.mean(euler_hy_error,axis=0)
-        t_error_obj2base_mean_dict [name_list[i]]=np.mean(t_hy_error,axis=0)
-        euler_error_camera2end_std_dict [name_list[i]]=np.std(euler_hx_error,axis=0)
-        t_error_camera2end_std_dict[name_list[i]]=np.std(t_hx_error,axis=0)
-        euler_error_obj2base_std_dict[name_list[i]]=np.std(euler_hy_error,axis=0)
-        t_error_obj2base_std_dict[name_list[i]]=np.std(t_hy_error,axis=0)
-    ax_list = init_set()
-    draw_error_seaborn_ax(ax_list[0], euler_error_camera2end_mean_dict, x_range,os.path.join(root_dir, "{0}_mean_r.csv".format(Hx)))
-    draw_error_seaborn_ax(ax_list[1], t_error_camera2end_mean_dict, x_range,os.path.join(root_dir, "{0}_mean_t.csv".format(Hx)))
+        hx_euler_mean_temp = np.mean(euler_hx_error,axis=0)
+        hx_t_mean_temp=np.mean(t_hx_error,axis=0)
+        hy_euler_mean_temp=np.mean(euler_hy_error,axis=0)
+        hy_t_mean_temp=np.mean(t_hy_error,axis=0)
+        hx_euler_std_temp=np.std(euler_hx_error,axis=0)
+        hx_t_std_temp=np.std(t_hx_error,axis=0)
+        hy_euler_std_temp=np.std(euler_hy_error,axis=0)
+        hy_t_std_temp=np.std(t_hy_error,axis=0)
+        for j in range(21):
+            number.append(j+5)
+            methods.append(method_list[i])
+            hx_euler_mean.append(hx_euler_mean_temp[j])
+            hx_t_mean.append(hx_t_mean_temp[j])
+            hy_euler_mean.append(hy_euler_mean_temp[j])
+            hy_t_mean.append(hy_t_mean_temp[j])
+            hx_euler_std.append(hx_euler_std_temp[j])
+            hx_t_std.append(hx_t_std_temp[j])
+            hy_euler_std.append(hy_euler_std_temp[j])
+            hy_t_std.append(hy_t_std_temp[j])
+    hx_euler_error_df = pd.DataFrame({"number":number,"mean":hx_euler_mean,"std":hx_euler_std,"method":methods})
+    hx_t_error_df = pd.DataFrame({"number":number,"mean":hx_t_mean,"std":hx_t_std,"method":methods})
+    hy_euler_error_df = pd.DataFrame({"number":number,"mean":hy_euler_mean,"std":hy_euler_std,"method":methods})
+    hy_t_error_df = pd.DataFrame({"number":number,"mean":hy_t_mean,"std":hy_t_std,"method":methods})
+    #ax_list = init_set()
+    # sns.lineplot(x="number",y="mean",hue="method",data=hx_euler_error_df,ax=ax_list[0])
+    # ax2 = ax_list[0].twinx()
+    ax = sns.lineplot(x="number", y="std",hue="method",data=hx_euler_error_df, dashes=[(2, 2), (2, 2)])
+    plt.show()
+    #
+    #     t_error_obj2base_std_dict[name_list[i]]=np.std(t_hy_error,axis=0)
+    # hx_euler = pd.DataFrame({})
+    # ax_list = init_set()
+    # draw_error_seaborn_ax(ax_list[0], euler_error_camera2end_mean_dict, x_range,os.path.join(root_dir, "{0}_mean_r.csv".format(Hx)))
+    # draw_error_seaborn_ax(ax_list[1], t_error_camera2end_mean_dict, x_range,os.path.join(root_dir, "{0}_mean_t.csv".format(Hx)))
     # for i in range(5):
     #     ax_list[i+1].legend_.remove()
     # ax_list[0].set_ylabel("error(rad)")
@@ -235,26 +264,26 @@ if __name__ == '__main__':
     # ax_list[3].set_xlabel("iter")
     # ax_list[4].set_xlabel("iter")
     # ax_list[5].set_xlabel("iter")
-    plt.savefig(os.path.join(root_dir, "E{0}_mean_two.png").format(Hx))
-    plt.show()
-    ax_list = init_set()
-    draw_error_seaborn_ax(ax_list[0], euler_error_camera2end_std_dict, x_range,os.path.join(root_dir, "{0}_std_r.csv".format(Hx)))
-    draw_error_seaborn_ax(ax_list[1], t_error_camera2end_std_dict, x_range,os.path.join(root_dir, "{0}_std_t.csv".format(Hx)))
-    # for i in range(5):
-    #     ax_list[i+1].legend_.remove()
-    plt.savefig(os.path.join(root_dir, "E{0}_std_two.png").format(Hx))
-    plt.show()
-    ax_list = init_set()
-    draw_error_seaborn_ax(ax_list[0], euler_error_obj2base_mean_dict, x_range,os.path.join(root_dir, "{0}_mean_r.csv".format(Hy)))
-    draw_error_seaborn_ax(ax_list[1], t_error_obj2base_mean_dict, x_range,os.path.join(root_dir, "{0}_mean_t.csv".format(Hy)))
-    # for i in range(5):
-    #     ax_list[i+1].legend_.remove()
-    plt.savefig(os.path.join(root_dir, "E{0}_mean_two.png").format(Hy))
-    plt.show()
-    ax_list = init_set()
-    draw_error_seaborn_ax(ax_list[0], euler_error_obj2base_std_dict, x_range,os.path.join(root_dir, "{0}_std_r.csv".format(Hy)))
-    draw_error_seaborn_ax(ax_list[1], t_error_obj2base_std_dict, x_range,os.path.join(root_dir, "{0}_std_r.csv".format(Hy)))
-    # for i in range(5):
-    #     ax_list[i+1].legend_.remove()
-    plt.savefig(os.path.join(root_dir, "E{0}_std_two.png").format(Hy))
-    plt.show()
+    # plt.savefig(os.path.join(root_dir, "E{0}_mean_two.png").format(Hx))
+    # plt.show()
+    # ax_list = init_set()
+    # draw_error_seaborn_ax(ax_list[0], euler_error_camera2end_std_dict, x_range,os.path.join(root_dir, "{0}_std_r.csv".format(Hx)))
+    # draw_error_seaborn_ax(ax_list[1], t_error_camera2end_std_dict, x_range,os.path.join(root_dir, "{0}_std_t.csv".format(Hx)))
+    # # for i in range(5):
+    # #     ax_list[i+1].legend_.remove()
+    # plt.savefig(os.path.join(root_dir, "E{0}_std_two.png").format(Hx))
+    # plt.show()
+    # ax_list = init_set()
+    # draw_error_seaborn_ax(ax_list[0], euler_error_obj2base_mean_dict, x_range,os.path.join(root_dir, "{0}_mean_r.csv".format(Hy)))
+    # draw_error_seaborn_ax(ax_list[1], t_error_obj2base_mean_dict, x_range,os.path.join(root_dir, "{0}_mean_t.csv".format(Hy)))
+    # # for i in range(5):
+    # #     ax_list[i+1].legend_.remove()
+    # plt.savefig(os.path.join(root_dir, "E{0}_mean_two.png").format(Hy))
+    # plt.show()
+    # ax_list = init_set()
+    # draw_error_seaborn_ax(ax_list[0], euler_error_obj2base_std_dict, x_range,os.path.join(root_dir, "{0}_std_r.csv".format(Hy)))
+    # draw_error_seaborn_ax(ax_list[1], t_error_obj2base_std_dict, x_range,os.path.join(root_dir, "{0}_std_r.csv".format(Hy)))
+    # # for i in range(5):
+    # #     ax_list[i+1].legend_.remove()
+    # plt.savefig(os.path.join(root_dir, "E{0}_std_two.png").format(Hy))
+    # plt.show()
