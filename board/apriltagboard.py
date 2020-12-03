@@ -9,7 +9,7 @@ import yaml
 import numpy as np
 import cv2
 import transforms3d
-import dt_apriltags as apriltag
+import pupil_apriltags as apriltag
 class AprilTagBoard(board.board):
     marker_X = 7
     marker_Y = 5

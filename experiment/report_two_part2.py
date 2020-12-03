@@ -72,6 +72,9 @@ def getErrorList(rootdir,fileList,euler_hx_gt,t_hx_gt,euler_hy_gt,t_hy_gt,method
             euler_hx_error_rz = min(abs(euler_hx_temp[2] - euler_hx_gt[2]),
                                     abs(euler_hx_temp[2] - euler_hx_gt[2] + 2 * 3.1415926),
                                     abs(euler_hx_temp[2] - euler_hx_gt[2] - 2 * 3.1415926))
+            if max(euler_hx_error_rx,euler_hx_error_ry,euler_hx_error_rz)>0.08 :
+                print(file)
+                continue
             hx_euler_error = np.mean(np.array([euler_hx_error_rx, euler_hx_error_ry, euler_hx_error_rz]))
             hx_t_error = np.mean(np.abs(t_hx_temp - t_hx_gt))
             image_number.append(number)
@@ -97,10 +100,10 @@ def getErrorList(rootdir,fileList,euler_hx_gt,t_hx_gt,euler_hy_gt,t_hy_gt,method
             #
             hy_euler.append(hy_euler_error)
             hy_t.append(hy_t_error)
-    hx_df_euler = pd.DataFrame({"image number":image_number,"euler_error":hx_euler,"method":method})
-    hx_df_t = pd.DataFrame({"image number":image_number,"t_error":hx_t,"method":method})
-    hy_df_euler = pd.DataFrame({"image number":image_number,"euler_error":hy_euler,"method":method})
-    hy_df_t = pd.DataFrame({"image number":image_number,"euler_error":hy_t,"method":method})
+    hx_df_euler = pd.DataFrame({"image number":image_number,"error":hx_euler,"method":method})
+    hx_df_t = pd.DataFrame({"image number":image_number,"error":hx_t,"method":method})
+    hy_df_euler = pd.DataFrame({"image number":image_number,"error":hy_euler,"method":method})
+    hy_df_t = pd.DataFrame({"image number":image_number,"error":hy_t,"method":method})
     return hx_df_euler,hy_df_euler,hx_df_t,hy_df_t
 
 
@@ -153,10 +156,30 @@ def draw_error_seaborn_ax(ax,error_dic,x_range,fileName=None):
         df.to_csv(fileName)
     sns.lineplot(data=df, ax=ax)
 
+def get_mean_band(error_df, methodlist):
+    error_dic = {}
+    for method in method_list:
+        error = np.empty([31-5,3])
+        for i in range(5,31):
+            h5 = hx_df_euler[(hx_df_euler["image number"] == i) & (hx_df_euler["method"] == method)]["error"]
+            error[i-5,0] = h5.mean(axis=0)
+            error[i-5,1] = h5.std(axis=0)
+        error_dic[method]=error
+    return error_dic
+
+
+
+
+
+
+
+
+
+
 
 if __name__ == '__main__':
-    method_list = [ 'std','no_Local','no_local_std', "random",'ias']
-    name_list = ['std','no_Local','no_local_std', "random",'ias']
+    method_list = [ 'no_local_std', "random",'ias']
+    name_list = ['no_local_std', "random",'ias']
     #文件划分
 
     method_file_list = []
@@ -176,32 +199,52 @@ if __name__ == '__main__':
     t_hx_gt = Hx_gt[:3, 3]
     euler_hy_gt = transforms3d.euler.mat2euler(Hy_gt[:3, :3])
     t_hy_gt = Hy_gt[:3, 3]
-    x_range = np.arange(5, 26, 1)
+    x_range = np.arange(5, 31, 1)
     filePath = []
 
     hx_df_euler, hy_df_euler, hx_df_t, hy_df_t = getErrorList(root_dir,files,euler_hx_gt,t_hx_gt,euler_hy_gt,t_hy_gt,method_list,name_list)
 
     ax_list = init_set()
-    #print(hx_df_euler)
-    print(hx_df_euler[(hx_df_euler["image number"]==5) & (hx_df_euler["method"]=="no_local_std")])
-    sns.lineplot(x="image number", y="euler_error", hue="method", data=hx_df_euler,ax=ax_list[0])
-    sns.lineplot(x="image number", y="t_error", hue="method", data=hx_df_t,ax=ax_list[1])
-    # draw_error_seaborn_ax(ax_list[0], hx_df_euler, x_range,os.path.join(root_dir, "{0}_mean_r.csv".format(Hx)))
-    # draw_error_seaborn_ax(ax_list[1], hx_df_t, x_range,os.path.join(root_dir, "{0}_mean_t.csv".format(Hx)))
-    # for i in range(5):
-    #     ax_list[i+1].legend_.remove()
-    # ax_list[0].set_ylabel("error(rad)")
-    # ax_list[3].set_ylabel("error(m)")
-    # ax_list[3].set_xlabel("iter")
-    # ax_list[4].set_xlabel("iter")
-    # ax_list[5].set_xlabel("iter")
-    plt.savefig(os.path.join(root_dir, "E{0}2.png").format(Hx))
+    error_dic = get_mean_band(hx_df_euler,method_list)
+    scale = 0.1
+    for method in method_list:
+        y = error_dic[method][:,0]
+        std = error_dic[method][:,1]
+        ax_list[0].plot(x_range,y,color=colorMap[method],label=method)
+        ax_list[0].fill_between(x_range,y+scale*std,y-scale*std,alpha=0.2)
+    error_dic = get_mean_band(hx_df_t, method_list)
+    for method in method_list:
+        y = error_dic[method][:, 0]
+        std = error_dic[method][:, 1]
+        ax_list[1].plot(x_range, y, color=colorMap[method], label=method)
+        ax_list[1].fill_between(x_range, y + scale*std, y - scale*std, alpha=0.2)
     plt.show()
 
-    ax_list = init_set()
-    sns.lineplot(x="image number", y="euler_error", hue="method", data=hy_df_euler, ax=ax_list[0])
-    sns.lineplot(x="image number", y="t_error", hue="method", data=hy_df_t, ax=ax_list[1])
-    # for i in range(5):
-    #     ax_list[i+1].legend_.remove()
-    plt.savefig(os.path.join(root_dir, "E{0}2.png").format(Hy))
-    plt.show()
+    # #print(hx_df_euler)
+    # for i in range(5,26):
+    #     h5 = hx_df_euler[(hx_df_euler["image number"]==i) & (hx_df_euler["method"]=="no_local_std")]
+    #     print(i,h5.mean())
+    # for i in range(5,30):
+    #     df = hx_df_euler[(hx_df_euler["image number"]==i) & (hx_df_euler["method"]=="no_local_std")]
+    #
+    # sns.lineplot(x="image number", y="euler_error", hue="method", data=hx_df_euler,ax=ax_list[0],estimator="mean",ci='sd')
+    # sns.lineplot(x="image number", y="t_error", hue="method", data=hx_df_t,ax=ax_list[1],ci='sd')
+    # # draw_error_seaborn_ax(ax_list[0], hx_df_euler, x_range,os.path.join(root_dir, "{0}_mean_r.csv".format(Hx)))
+    # # draw_error_seaborn_ax(ax_list[1], hx_df_t, x_range,os.path.join(root_dir, "{0}_mean_t.csv".format(Hx)))
+    # # for i in range(5):
+    # #     ax_list[i+1].legend_.remove()
+    # # ax_list[0].set_ylabel("error(rad)")
+    # # ax_list[3].set_ylabel("error(m)")
+    # # ax_list[3].set_xlabel("iter")
+    # # ax_list[4].set_xlabel("iter")
+    # # ax_list[5].set_xlabel("iter")
+    # plt.savefig(os.path.join(root_dir, "E{0}2.png").format(Hx))
+    # plt.show()
+    #
+    # ax_list = init_set()
+    # sns.lineplot(x="image number", y="euler_error", hue="method", data=hy_df_euler, ax=ax_list[0],ci=100)
+    # sns.lineplot(x="image number", y="t_error", hue="method", data=hy_df_t, ax=ax_list[1],ci=99)
+    # # for i in range(5):
+    # #     ax_list[i+1].legend_.remove()
+    # plt.savefig(os.path.join(root_dir, "E{0}2.png").format(Hy))
+    # plt.show()

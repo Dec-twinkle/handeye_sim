@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import transforms3d
 from scipy import optimize as opt
+from board import apriltagboard
 import math
 def generate_simple_pose(config,board,initial_rotation,verbose=0):
     fs = cv2.FileStorage(config, cv2.FILE_STORAGE_READ)
@@ -151,14 +152,14 @@ def writeConfig(config):
     return 0
 
 if __name__ == "__main__":
-    a = math.pi/3
-    b = math.pi/4
-    c = math.pi/6
-    init_rotation = transforms3d.euler.euler2mat(a,b,c,'rxyz')
-    getBaseCampose(init_rotation)
+    # a = math.pi/3
+    # b = math.pi/4
+    # c = math.pi/6
+    # init_rotation = transforms3d.euler.euler2mat(a,b,c,'rxyz')
+    # getBaseCampose(init_rotation)
     #writeConfig("../config/auto_sample.yml")
-    # board = apriltagBoard("../config/apriltag.yml", "../config/tagId.csv")
-    # pose = generate_simple_pose("../config/auto_sample.yml",board,1)
+    board = apriltagboard.board("../config/apriltag.yml", "../config/tagId.csv")
+    pose = generate_simple_pose("../config/auto_sample.yml",board,1)
     # imgsize = tuple([1920,1080])
     # root_dir = "F:/fbs_data_raw/507"
     # fs = cv2.FileStorage(root_dir + "/intrinsic_gt.yml", cv2.FILE_STORAGE_READ)

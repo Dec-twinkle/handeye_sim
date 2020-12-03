@@ -5,6 +5,8 @@ from method import tranformUtils as utils
 
 def calibration(motionAs, motionBs):
     '''
+    Optimal least-squares solution to the hand-eye calibration problem
+    Amit Dekel Linus H¨arenstam-Nielsen Sergio Caccamo
     使用对偶四元数进行标定
     :param motionAs: AX=XB,来自handineye.motion_axxb或者handtoeye.motion_axxb
     :param motionBs:  AX=XB,来自handineye.motion_axxb或者handtoeye.motion_axxb
