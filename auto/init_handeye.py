@@ -13,7 +13,14 @@ from handineye import motion
 from handineye import rx
 from method import tsai
 from method import li
-import cv2
+ros_cv2_path = '/opt/ros/kinetic/lib/python2.7/dist-packages'
+import sys
+if ros_cv2_path in sys.path:
+    sys.path.remove(ros_cv2_path)
+    import cv2
+    sys.path.append(ros_cv2_path)
+else:
+    import cv2
 import numpy as np
 def init_handeye(initpose,camera,robot,board,intrinsic,dist):
     '''

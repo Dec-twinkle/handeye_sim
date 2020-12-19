@@ -138,11 +138,12 @@ def score_std_numba(expect_camera_list,Hend2base,Hobj2camera,Hx):
 @jit(nopython=True)
 def score_no_local_numba(expect_robot_pose,Hend2base):
     score = np.zeros((expect_robot_pose.shape[0], 1), dtype=nb.float32)
+    K = np.zeros((4, 4), dtype=nb.float32)
     for i in range(expect_robot_pose.shape[0]):
         min_score = 0
         R = expect_robot_pose[i, :3, :3]
-        Qxx, Qyx, Qzx, Qxy, Qyy, Qzy, Qxz, Qyz, Qzz = R.astype(nb.float32).flat
-        K = np.zeros((4, 4), dtype=nb.float32)
+        Qxx, Qyx, Qzx, Qxy, Qyy, Qzy, Qxz, Qyz, Qzz = R.flat
+
         K[0, 0] = Qxx - Qyy - Qzz
         K[1, 0] = Qyx + Qxy
         K[1, 1] = Qyy - Qxx - Qzz
@@ -153,7 +154,7 @@ def score_no_local_numba(expect_robot_pose,Hend2base):
         K[3, 1] = Qzx - Qxz
         K[3, 2] = Qxy - Qyx
         K[3, 3] = Qxx + Qyy + Qzz
-        K = K / 3.0
+        # K = K / 3.0
         vals, vecs = np.linalg.eigh(K)
         q0 = vecs[:, np.argmax(vals)]
         t0 = expect_robot_pose[i, :3, 3]
@@ -161,11 +162,11 @@ def score_no_local_numba(expect_robot_pose,Hend2base):
             R = Hend2base[j, :3, :3]
             Qxx, Qyx, Qzx, Qxy, Qyy, Qzy, Qxz, Qyz, Qzz = R.flat
             K = np.array([
-                [Qxx - Qyy - Qzz, 0, 0, 0],
-                [Qyx + Qxy, Qyy - Qxx - Qzz, 0, 0],
-                [Qzx + Qxz, Qzy + Qyz, Qzz - Qxx - Qyy, 0],
-                [Qyz - Qzy, Qzx - Qxz, Qxy - Qyx, Qxx + Qyy + Qzz]], dtype=nb.float32
-            ) / 3.0
+                [(Qxx - Qyy - Qzz) / 3.0, 0, 0, 0],
+                [(Qyx + Qxy) / 3.0, (Qyy - Qxx - Qzz) / 3.0, 0, 0],
+                [(Qzx + Qxz) / 3.0, (Qzy + Qyz) / 3.0, (Qzz - Qxx - Qyy) / 3.0, 0],
+                [(Qyz - Qzy) / 3.0, (Qzx - Qxz) / 3.0, (Qxy - Qyx) / 3.0, (Qxx + Qyy + Qzz) / 3.0]], dtype=nb.float32
+            )
             vals, vecs = np.linalg.eigh(K)
             q = vecs[:, np.argmax(vals)]
             t = Hend2base[j, :3, 3]

@@ -2,7 +2,14 @@ from abc import ABCMeta,abstractmethod
 import numpy as np
 import transforms3d
 from scipy import optimize as op
-import cv2
+import sys
+ros_cv2_path = '/opt/ros/kinetic/lib/python2.7/dist-packages'
+if ros_cv2_path in sys.path:
+    sys.path.remove(ros_cv2_path)
+    import cv2
+    sys.path.append(ros_cv2_path)
+else:
+    import cv2
 from matplotlib import pyplot as plt
 from board import utils
 class board(object):
@@ -429,8 +436,131 @@ class board(object):
     def extrinsic(self,imgpoints, objpoints, intrinsic, dist):
         n = objpoints.shape[0]
         realcoor = np.append(objpoints, np.zeros([n, 1]), 1)
-        revl, rvec, tvec = cv2.solvePnP(realcoor, imgpoints, intrinsic, dist,cv2.SOLVEPNP_EPNP)
+        revl, rvec, tvec = cv2.solvePnP(realcoor, imgpoints, intrinsic, dist)
         R = cv2.Rodrigues(rvec)[0]
         return np.append(np.append(R, tvec, 1), np.array([[0, 0, 0, 1]]), 0)
+
+    def intrinsic_depth_opt2(self,objPoints_list, imgPoints_list, depth_list, intrinsic, discoff):
+        def loss_function(X,lengthdiscoff,extrinsic_list,objPoints_list,imgPoints_list):
+            error = []
+            [alpha, gamma, uc, vc] = X[0:4]
+            discoff = X[4:4 + lengthdiscoff]
+            A = np.array([[alpha, 0, uc],
+                          [0, gamma, vc],
+                          [0, 0, 1]])
+            n = len(objPoints_list)
+            return self.reprojection_error(A,discoff,extrinsic_list,imgPoints_list,objPoints_list)
+        for i in range(10):
+            extrinsic_list = []
+            for j in range(len(objPoints_list)):
+                extrinsic_list.append(self.extrisic_depth(objPoints_list[j],imgPoints_list[j],depth_list[j],intrinsic,discoff)[1])
+            alpha = np.array([intrinsic[0, 0], intrinsic[1, 1], intrinsic[0, 2], intrinsic[1, 2]])
+            lengthdiscoff = np.size(discoff)
+            init = np.append(alpha, discoff)
+            solver = op.root(loss_function, init, args=(lengthdiscoff,extrinsic_list, objPoints_list, imgPoints_list),
+                             method="lm")
+            X = solver.x
+            [alpha, gamma, uc, vc] = X[0:4]
+            discoff = np.array([X[4:4 + lengthdiscoff]])
+            intrinsic = np.array([[alpha, 0, uc],
+                          [0, gamma, vc],
+                          [0, 0, 1]])
+            print("for {} interator:".format(i),intrinsic.flatten(),discoff.flatten())
+        return intrinsic,discoff
+    def intrinsic_depth_opt3(self,objPoints_list, imgPoints_list, depth_list, intrinsic, discoff):
+        def extrinsic(imgpoints, objpoints, intrinsic, dist):
+            n = objpoints.shape[0]
+            realcoor = np.append(objpoints, np.zeros([n, 1]), 1)
+            revl, rvec, tvec = cv2.solvePnP(realcoor, imgpoints, intrinsic, dist)
+            R = cv2.Rodrigues(rvec)[0]
+            return np.append(np.append(R, tvec, 1), np.array([[0, 0, 0, 1]]), 0)
+
+        def error_2(X1,X2):
+            q1 = transforms3d.quaternions.mat2quat(X1[:3,:3])
+            q2 = transforms3d.quaternions.mat2quat(X2[:3,:3])
+            error = q1 - q2 if np.linalg.norm(q1-q2) <np.linalg.norm(q1+q2) else q1+q2
+            error = np.append(error,X1[:3,3]-X2[:3,3])
+            return error
+        def loss_function(X,lengthdiscoff,extrinsic_list,objPoints_list,imgPoints_list):
+            error = np.array([])
+            [alpha, gamma, uc, vc] = X[0:4]
+            discoff = X[4:4 + lengthdiscoff]
+            A = np.array([[alpha, 0, uc],
+                          [0, gamma, vc],
+                          [0, 0, 1]])
+            n = len(objPoints_list)
+            for i in range(len(objPoints_list)):
+                extrinsic_2d = extrinsic(imgPoints_list[i],objPoints_list[i],A,discoff)
+                error = np.append(error,error_2(extrinsic_2d,extrinsic_list[i]))
+            return error.flatten()
+        for i in range(10000):
+            extrinsic_list = []
+            for j in range(len(objPoints_list)):
+                extrinsic_list.append(self.extrisic_depth(objPoints_list[j],imgPoints_list[j],depth_list[j],intrinsic,discoff)[1])
+            alpha = np.array([intrinsic[0, 0], intrinsic[1, 1], intrinsic[0, 2], intrinsic[1, 2]])
+            lengthdiscoff = np.size(discoff)
+            init = np.append(alpha, discoff)
+            solver = op.root(loss_function, init, args=(lengthdiscoff,extrinsic_list, objPoints_list, imgPoints_list),
+                             method="lm")
+            X = solver.x
+            [alpha, gamma, uc, vc] = X[0:4]
+            discoff = np.array([X[4:4 + lengthdiscoff]])
+            intrinsic = np.array([[alpha, 0, uc],
+                          [0, gamma, vc],
+                          [0, 0, 1]])
+            print("for {} interator:".format(i),intrinsic.flatten(),discoff.flatten())
+        return intrinsic,discoff
+    def intrinsic_depth_opt4(self,objPoints_list, imgPoints_list, depth_list, intrinsic, discoff):
+        def extrinsic(imgpoints, objpoints, intrinsic, dist):
+            n = objpoints.shape[0]
+            realcoor = np.append(objpoints, np.zeros([n, 1]), 1)
+            revl, rvec, tvec = cv2.solvePnP(realcoor, imgpoints, intrinsic, dist)
+            R = cv2.Rodrigues(rvec)[0]
+            return np.append(np.append(R, tvec, 1), np.array([[0, 0, 0, 1]]), 0)
+        def distance_error(X, lengthdiscoff, objPoints_list, imgPoints_list, depth_list):
+            error = np.array([])
+            [alpha, gamma, uc, vc] = X[0:4]
+            discoff = X[4:4 + lengthdiscoff]
+            A = np.array([[alpha, 0, uc],
+                          [0, gamma, vc],
+                          [0, 0, 1]])
+            n = len(objPoints_list)
+            for i in range(n):
+                extrinsic_rgb = extrinsic(imgPoints_list[i],objPoints_list[i],A,discoff)
+                Point_cam_cood = cv2.undistortPoints(imgPoints_list[i].reshape(-1,1,2), A, discoff)
+                Point_cam_cood = Point_cam_cood.reshape(-1, 2)
+                depth_point_acc = np.append(Point_cam_cood, depth_list[i], 1)
+                if Point_cam_cood.shape[0] < 5:
+                    continue
+                for j in range(depth_point_acc.shape[0]):
+                    depth_point_acc[j, 0] = Point_cam_cood[j, 0] * depth_point_acc[j, 2]
+                    depth_point_acc[j, 1] = Point_cam_cood[j, 1] * depth_point_acc[j, 2]
+
+                plane = utils.get_nice_plane(depth_point_acc)
+                for j in range(depth_point_acc.shape[0]):
+                    point = np.array([objPoints_list[i][j,0],objPoints_list[i][j,1],0,1]).reshape([4,1])
+                    point_in_cam = np.dot(extrinsic_rgb,point)
+                    depth_rgb = point_in_cam[2,0]
+                    depth_real = plane[0] * depth_point_acc[j, 0] + plane[1] * depth_point_acc[j, 1] + plane[
+                        2]
+                    error = np.append(error,depth_rgb-depth_real)
+
+            return error
+
+
+        alpha = np.array([intrinsic[0, 0], intrinsic[1, 1], intrinsic[0, 2], intrinsic[1, 2]])
+        lengthdiscoff = np.size(discoff)
+        init = np.append(alpha, discoff)
+        solver = op.root(distance_error, init, args=(lengthdiscoff, objPoints_list, imgPoints_list, depth_list),
+                              method="lm")
+        X = solver.x
+        error = distance_error(X, lengthdiscoff, objPoints_list, imgPoints_list, depth_list)
+        [alpha, gamma, uc, vc] = X[0:4]
+        discoff = np.array([X[4:4 + lengthdiscoff]])
+        intrinsic = np.array([[alpha, 0, uc],
+                        [0, gamma, vc],
+                        [0, 0, 1]])
+        print("max rme",np.max(np.abs(error)))
+        return intrinsic, discoff
 
 

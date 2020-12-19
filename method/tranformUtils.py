@@ -1,7 +1,15 @@
 # -*- coding:utf-8 -*-
 import numpy as np
 import math
-import cv2
+import sys
+ros_cv2_path = '/opt/ros/kinetic/lib/python2.7/dist-packages'
+
+if ros_cv2_path in sys.path:
+    sys.path.remove(ros_cv2_path)
+    import cv2
+    sys.path.append(ros_cv2_path)
+else:
+    import cv2
 def eulerAngles2RotationMatrix(theta):
     """
     将欧拉角转化为旋转矩阵

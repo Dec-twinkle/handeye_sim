@@ -2,14 +2,20 @@
 # @time: 
 # @author:张新新
 # @email: 1262981714@qq.com
-import cv2
+import sys
+ros_cv2_path = '/opt/ros/kinetic/lib/python2.7/dist-packages'
+if ros_cv2_path in sys.path:
+    sys.path.remove(ros_cv2_path)
+    import cv2
+    sys.path.append(ros_cv2_path)
+else:
+    import cv2
 import numpy as np
 from board import board as board
-import yaml
 import numpy as np
 import cv2
 import transforms3d
-import pupil_apriltags as apriltag
+import dt_apriltags as apriltag
 class AprilTagBoard(board.board):
     marker_X = 7
     marker_Y = 5
@@ -69,7 +75,7 @@ class AprilTagBoard(board.board):
         tags = self.detectTags(image,verbose=verbose)
         objpoint = np.array([])
         imgpoint = np.array([])
-        if len(tags)<self.marker_Y*self.marker_X/4:
+        if len(tags)<self.marker_Y*self.marker_X/2:
             return False,0,0
         for tag in tags:
             center, conners = self.getPointsbyTagId(tag.tag_id)

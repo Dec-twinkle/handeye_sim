@@ -2,7 +2,13 @@
 # @time: 
 # @author:张新新
 # @email: 1262981714@qq.com
-import cv2
+ros_cv2_path = '/opt/ros/kinetic/lib/python2.7/dist-packages'
+if ros_cv2_path in sys.path:
+    sys.path.remove(ros_cv2_path)
+    import cv2
+    sys.path.append(ros_cv2_path)
+else:
+    import cv2
 import transforms3d
 import numpy as np
 import time
@@ -260,18 +266,12 @@ def score_no_local(expect_robot_pose,Hend2base):
         min_score = 0
         R = expect_robot_pose[i, :3, :3]
         Qxx, Qyx, Qzx, Qxy, Qyy, Qzy, Qxz, Qyz, Qzz = R.astype(nb.float32).flat
-        K = np.zeros((4, 4), dtype=nb.float32)
-        K[0, 0] = Qxx - Qyy - Qzz
-        K[1, 0] = Qyx + Qxy
-        K[1, 1] = Qyy - Qxx - Qzz
-        K[2, 0] = Qzx + Qxz
-        K[2, 1] = Qzy + Qyz
-        K[2, 2] = Qzz - Qxx - Qyy
-        K[3, 0] = Qyz - Qzy
-        K[3, 1] = Qzx - Qxz
-        K[3, 2] = Qxy - Qyx
-        K[3, 3] = Qxx + Qyy + Qzz
-        K = K / 3.0
+        K = np.array([
+            [(Qxx - Qyy - Qzz) / 3.0, 0, 0, 0],
+            [(Qyx + Qxy) / 3.0, (Qyy - Qxx - Qzz) / 3.0, 0, 0],
+            [(Qzx + Qxz) / 3.0, (Qzy + Qyz) / 3.0, (Qzz - Qxx - Qyy) / 3.0, 0],
+            [(Qyz - Qzy) / 3.0, (Qzx - Qxz) / 3.0, (Qxy - Qyx) / 3.0, (Qxx + Qyy + Qzz) / 3.0]], dtype=nb.float32
+        )
         vals, vecs = np.linalg.eigh(K)
         q0 = vecs[:, np.argmax(vals)]
         t0 = expect_robot_pose[i, :3, 3]
@@ -280,11 +280,11 @@ def score_no_local(expect_robot_pose,Hend2base):
             R = Hend2base[j, :3, :3]
             Qxx, Qyx, Qzx, Qxy, Qyy, Qzy, Qxz, Qyz, Qzz = R.flat
             K = np.array([
-                [Qxx - Qyy - Qzz, 0, 0, 0],
-                [Qyx + Qxy, Qyy - Qxx - Qzz, 0, 0],
-                [Qzx + Qxz, Qzy + Qyz, Qzz - Qxx - Qyy, 0],
-                [Qyz - Qzy, Qzx - Qxz, Qxy - Qyx, Qxx + Qyy + Qzz]], dtype=nb.float32
-            ) / 3.0
+                [(Qxx - Qyy - Qzz) / 3.0, 0, 0, 0],
+                [(Qyx + Qxy) / 3.0, (Qyy - Qxx - Qzz) / 3.0, 0, 0],
+                [(Qzx + Qxz) / 3.0, (Qzy + Qyz) / 3.0, (Qzz - Qxx - Qyy) / 3.0, 0],
+                [(Qyz - Qzy) / 3.0, (Qzx - Qxz) / 3.0, (Qxy - Qyx) / 3.0, (Qxx + Qyy + Qzz) / 3.0]], dtype=nb.float32
+            )
             vals, vecs = np.linalg.eigh(K)
             q = vecs[:, np.argmax(vals)]
             t = Hend2base[j, :3, 3]
@@ -401,11 +401,11 @@ def getRobotPose_handoneye(expect_camera_list,Hend2base,Hobj2camera,Hx):
             R = robot_pose[:3,:3]
             Qxx, Qyx, Qzx, Qxy, Qyy, Qzy, Qxz, Qyz, Qzz = R.flat
             K = np.array([
-                [Qxx - Qyy - Qzz, 0, 0, 0],
-                [Qyx + Qxy, Qyy - Qxx - Qzz, 0, 0],
-                [Qzx + Qxz, Qzy + Qyz, Qzz - Qxx - Qyy, 0],
-                [Qyz - Qzy, Qzx - Qxz, Qxy - Qyx, Qxx + Qyy + Qzz]],dtype=nb.float32
-            ) / 3.0
+                [(Qxx - Qyy - Qzz)/3.0, 0, 0, 0],
+                [(Qyx + Qxy)/3.0, (Qyy - Qxx - Qzz)/3.0, 0, 0],
+                [(Qzx + Qxz)/3.0, (Qzy + Qyz)/3.0, (Qzz - Qxx - Qyy)/3.0, 0],
+                [(Qyz - Qzy)/3.0, (Qzx - Qxz)/3.0, (Qxy - Qyx)/3.0, (Qxx + Qyy + Qzz)/3.0]],dtype=nb.float32
+            )
             vals, vecs = np.linalg.eigh(K)
             q = vecs[:,np.argmax(vals)]
             if j==0:

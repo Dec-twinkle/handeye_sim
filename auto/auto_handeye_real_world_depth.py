@@ -17,6 +17,7 @@ import time
 import math
 from method import tsai
 from method import dual
+from PIL import Image
 from method import li
 import os
 #import handtoeye
@@ -571,7 +572,8 @@ class auto_handeye_calibration(object):
         if not flag:
             print("cannot reach init pose")
             exit(0)
-        flag, rgb_image = self.camera.get_rgb_image()
+        #flag, rgb_image = self.camera.get_rgb_image()
+        flag, rgb_image,depth_image = self.camera.get_rgb_depth_image()
         assert flag, "cannot capture"
         flag, objpoint, imgpoint = self.board.getObjImgPointList(rgb_image, verbose=0)
         assert flag, "robot init pose cannot see board"
@@ -581,9 +583,11 @@ class auto_handeye_calibration(object):
         self.Hobj2camera = []
         self.image = []
         self.result = []
+        self.depth_img = []
         self.objpoint_list.append(objpoint)
         self.imgpoint_list.append(imgpoint)
         self.image.append(rgb_image)
+        self.depth_img.append(depth_image)
         self.Hend2base.append(pose)
         camerapose = self.board.extrinsic(imgpoint, objpoint, self.camera.intrinsic, self.camera.dist)
         self.Hobj2camera.append(camerapose)
@@ -609,7 +613,7 @@ class auto_handeye_calibration(object):
                         flag,robot_pose = self.robot.move(robot_pose)
                         if not flag:
                             break
-                        flag,rgb_image = self.camera.get_rgb_image()
+                        flag,rgb_image,depth_image = self.camera.get_rgb_depth_image()
                         if not flag:
                             break
                         flag, objpoint, imgpoint = self.board.getObjImgPointList(rgb_image)
@@ -618,6 +622,7 @@ class auto_handeye_calibration(object):
                             imgpoint_temp = imgpoint.copy()
                             robot_pose_temp = robot_pose.copy()
                             image_temp = rgb_image.copy()
+                            depth_temp = depth_image.copy()
                         else:
                             if not objpoint_temp is None:
                                 camerapose = self.board.extrinsic(imgpoint_temp, objpoint_temp, self.camera.intrinsic,
@@ -627,6 +632,7 @@ class auto_handeye_calibration(object):
                                 self.imgpoint_list.append(imgpoint_temp)
                                 self.Hend2base.append(robot_pose_temp)
                                 self.image.append(image_temp)
+                                self.depth_img.append(depth_temp)
                             break
 
             assert len(self.Hend2base) > 3, "cannot find enough initial data"
@@ -645,7 +651,8 @@ class auto_handeye_calibration(object):
                     flag, robot_pose = self.robot.move(robot_pose)
                     if not flag:
                         continue
-                    flag, rgb_image = self.camera.get_rgb_image()
+                    #flag, rgb_image = self.camera.get_rgb_image()
+                    flag, rgb_image,depth_image = self.camera.get_rgb_depth_image()
                     if not flag:
                         continue
                     flag, objpoint, imgpoint = self.board.getObjImgPointList(rgb_image)
@@ -657,6 +664,7 @@ class auto_handeye_calibration(object):
                         self.imgpoint_list.append(imgpoint)
                         self.Hend2base.append(robot_pose)
                         self.image.append(rgb_image)
+                        self.depth_img.append(depth_image)
             assert len(self.Hend2base) > 3, "cannot find enough initial data"
             return
 
@@ -674,9 +682,10 @@ class auto_handeye_calibration(object):
         #A, B = motion.motion_axyb(self.Hend2base, self.Hobj2camera)
         # Hx,Hy = li.calibration(A,B)
         Hx = dual.calibration(A, B)
-        Hx = tsai.calibration(A, B)
+        #Hx = tsai.calibration(A, B)
         Hx = rx.refine(Hx, self.Hend2base, self.Hobj2camera,
                                            self.board.GetBoardAllPoints())
+        
         q = np.array([])
         t = np.array([])
         for i in range(len(self.Hobj2camera)):
@@ -703,17 +712,20 @@ class auto_handeye_calibration(object):
         Hy[:3, :3] = Hy_r[:, :]
         Hy[:3, 3] = t_mean[:]
         rme = rz.proj_error(Hx,Hy,self.Hend2base,self.Hobj2camera,self.board.GetBoardAllPoints())
+        print("Hx",Hx,"max_rme",np.max(np.abs(rme)))
         if self.cali_type==0:
             self.result.append({"image_number": len(self.image), "Hcamera2end":Hx,"Hobj2base":Hy,
                                  "mean_rme":np.mean(np.abs(rme)),"max_rme":np.max(np.abs(rme))})
         else:
             self.result.append({"image_number": len(self.image), "Hcamera2base": Hx, "Hobj2end": Hy,
                                 "mean_rme": np.mean(np.abs(rme)), "max_rme": np.max(np.abs(rme),)})
-        if np.mean(np.abs(rme))<10:
+        if np.max(np.abs(rme))<0.1:
             self.Hx = Hx
             self.Hy = Hy
             return True
         else:
+            print("error please check camera")
+            a= input()
             del self.objpoint_list[-1]
             del self.imgpoint_list[-1]
             del self.Hend2base[-1]
@@ -1102,7 +1114,9 @@ class auto_handeye_calibration(object):
                 flag,robot_pose = self.robot.move(robot_pose)
                 if not flag:
                     continue
-                flag, rgb_image = self.camera.get_rgb_image()
+                print("robot_pose",robot_pose)
+                #flag, rgb_image = self.camera.get_rgb_image()
+                flag, rgb_image,depth_image = self.camera.get_rgb_depth_image()
                 if not flag:
                     break
                 flag, objpoint, imgpoint = self.board.getObjImgPointList(rgb_image)
@@ -1114,6 +1128,7 @@ class auto_handeye_calibration(object):
                 self.Hend2base.append(robot_pose)
                 self.Hobj2camera.append(camerapose)
                 self.image.append(rgb_image)
+                self.depth_img.append(depth_image)
                 break
             flag = self.handeye_cali()
             if flag:
@@ -1133,6 +1148,10 @@ class auto_handeye_calibration(object):
         for i in range(len(self.image)):
             cv2.imwrite(os.path.join(dir,"{}_color.bmp".format(i)),self.image[i])
 
+    def save_depth(self,dir):
+        for i in range(len(self.image)):
+            depth = Image.fromarray(self.depth_img[i])
+            depth.save(os.path.join(dir,"{}_depth.png".format(i)))
     def save_robot_pose(self,file):
         from auto import utils
         utils.json_save(self.Hend2base, file)

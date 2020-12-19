@@ -5,7 +5,6 @@
 import numpy as np
 import transforms3d
 from scipy import optimize as op
-import cv2
 from matplotlib import pyplot as plt
 def get_nice_plane(point):
     def loss_function(x, point):

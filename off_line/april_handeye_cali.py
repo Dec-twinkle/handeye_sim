@@ -2,6 +2,14 @@
 # @time: 
 # @author:张新新
 # @email: 1262981714@qq.com
+ros_cv2_path = '/opt/ros/kinetic/lib/python2.7/dist-packages'
+import sys
+if ros_cv2_path in sys.path:
+    sys.path.remove(ros_cv2_path)
+    import cv2
+    sys.path.append(ros_cv2_path)
+else:
+    import cv2
 from handineye import motion
 from handineye import rx
 from handineye import rz
@@ -17,8 +25,8 @@ from method import li
 import transforms3d
 import os
 from handineye import rz
-from board import arucoboard
-import cv2
+from board import apriltagboard
+
 
 
 
@@ -42,7 +50,15 @@ def getPose2(robot_file):
         H = np.append(np.append(r, t, 1), np.array([[0, 0, 0, 1]]), 0)
         poseList.append(H)
     return poseList
-
+def getPose3(robot_file):
+    temp = np.loadtxt(robot_file)
+    poseList = []
+    for i in range(temp.shape[0]):
+        r = transforms3d.quaternions.quat2mat(np.array([temp[i,6],temp[i, 3],temp[i,4],temp[i,5]]))
+        t = np.array([temp[i, :3]]).T
+        H = np.append(np.append(r, t, 1), np.array([[0, 0, 0, 1]]), 0)
+        poseList.append(H)
+    return poseList
 
 
 def getImgList(root_dir):
@@ -57,14 +73,16 @@ def getImgList(root_dir):
     return rgb_list,depth_list
 
 def main():
-    board = arucoboard.arucoboard("../config/aruco.yml")
+    board = apriltagboard.AprilTagBoard("../config/apriltag.yml", "../config/tagId.csv")
     verbose = 0
-    root_dir ="D:\\data\\fbs_data\\1129\\kinect"
+    root_dir ="../offline_data/handeye2"
     image_list,depth_list = getImgList(root_dir)
     if len(image_list)!= len(depth_list):
         print("numer of img and depth not same")
+    image_list.sort()
+    depth_list.sort()
     number = len(image_list)
-    fs = cv2.FileStorage(root_dir+"/intrinsic_real_world.yml", cv2.FILE_STORAGE_READ)
+    fs = cv2.FileStorage(root_dir+"/intrinsic.yml", cv2.FILE_STORAGE_READ)
     camera_matrix = fs.getNode("cameraMatrix").mat()
     discoff = fs.getNode("discoff").mat()
     imag_points_list = []
@@ -74,19 +92,16 @@ def main():
     for i in range(number):
         image = cv2.imread(image_list[i])
         flag,imagepoints, objpoints = board.getObjImgPointList(image)
-        depth_points, rejectids = depthUtils.get_depth(imagepoints, depth_list[i])
-        imagepoints = np.delete(imagepoints, rejectids, axis=0)
-        depth_points = np.delete(depth_points, rejectids, axis=0)
-        objpoints = np.delete(objpoints, rejectids, axis=0)
-        flag,extrinsic = board.extrisic_depth(objpoints,imagepoints,depth_points,camera_matrix,discoff)
-        if not flag:
-            print("error")
-            exit(0)
+        # depth_points, rejectids = depthUtils.get_depth(imagepoints, depth_list[i])
+        # imagepoints = np.delete(imagepoints, rejectids, axis=0)
+        # depth_points = np.delete(depth_points, rejectids, axis=0)
+        # objpoints = np.delete(objpoints, rejectids, axis=0)
+        extrinsic = board.extrinsic(objpoints,imagepoints,camera_matrix,discoff)
         extrinsic = board.extrinsic_opt(camera_matrix,discoff,extrinsic,imagepoints,objpoints)
         extrinsic_list.append(extrinsic)
         imag_points_list.append(imagepoints)
         obj_points_list.append(objpoints)
-        depth_points_list.append(depth_points)
+        # depth_points_list.append(depth_points)
 
 
     robot_pose = getPose2(os.path.join(root_dir,"pose.txt"))
